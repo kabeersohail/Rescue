@@ -912,16 +912,30 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                                 String id = marker.getId();
                                                 emergencyDetails = whor.get(id);
                                                 v = getLayoutInflater().inflate(R.layout.accept_request,null);
-                                                JavaAccept = v.findViewById(R.id.XmlAccept);
-                                                JavaNameShow = v.findViewById(R.id.XmlName);
-                                                JavaNeedShow = v.findViewById(R.id.XmlNeedShow);
-                                                JavaPhoneShow = v.findViewById(R.id.XmlPhoneShow);
-                                                JavaCommissionShow = v.findViewById(R.id.XmlComissionShow);
-                                                JavaNameShow.setText(emergencyDetails.nameshow);
-                                                JavaNeedShow.setText("Need: "+emergencyDetails.needshow);
-                                                JavaCommissionShow.setText("Commission: "+emergencyDetails.commissionshow);
-                                                JavaPhoneShow.setText("Phone:" +emergencyDetails.phoneshow);
-                                                return v;
+                                                if(emergencyDetails != null){
+                                                    JavaAccept = v.findViewById(R.id.XmlAccept);
+                                                    JavaNameShow = v.findViewById(R.id.XmlName);
+                                                    JavaNeedShow = v.findViewById(R.id.XmlNeedShow);
+                                                    JavaPhoneShow = v.findViewById(R.id.XmlPhoneShow);
+                                                    JavaCommissionShow = v.findViewById(R.id.XmlComissionShow);
+                                                    JavaNameShow.setText(emergencyDetails.nameshow);
+                                                    JavaNeedShow.setText("Need: "+emergencyDetails.needshow);
+                                                    JavaCommissionShow.setText("Commission: "+emergencyDetails.commissionshow);
+                                                    JavaPhoneShow.setText("Phone:" +emergencyDetails.phoneshow);
+                                                    return v;
+                                                }
+                                                else {
+
+                                                    // Be carefull here if you get any errors remove this else thats it
+
+                                                    Toast.makeText(MapsActivity.this,"keko - Solved",Toast.LENGTH_SHORT).show();
+                                                    v = getLayoutInflater().inflate(R.layout.name,null);
+                                                    JavaNameShow = v.findViewById(R.id.Xmlnamepro);
+                                                    JavaNameShow.setText("You: "+namE);
+                                                    Toast.makeText(MapsActivity.this,"You",Toast.LENGTH_SHORT).show();
+                                                    return v;
+                                                }
+
                                             }
                                             return v;
                                         }
