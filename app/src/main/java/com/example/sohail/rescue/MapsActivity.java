@@ -12,6 +12,7 @@ import android.app.TaskStackBuilder;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.DialogInterface;
@@ -32,9 +33,12 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.LocationManager;
 import android.media.RingtoneManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
@@ -53,6 +57,7 @@ import android.util.Base64;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.webkit.MimeTypeMap;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -61,6 +66,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.auth.api.Auth;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
@@ -69,6 +75,7 @@ import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -79,6 +86,8 @@ import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -89,6 +98,11 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.StorageTask;
+import com.google.firebase.storage.UploadTask;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -96,7 +110,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
@@ -108,8 +125,10 @@ import de.hdodenhof.circleimageview.CircleImageView;
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, View.OnClickListener,NavigationView.OnNavigationItemSelectedListener,GoogleApiClient.OnConnectionFailedListener,GoogleApiClient.ConnectionCallbacks {
     public static int SDK;
     Thread t=null;
+    String Gname = new String();
     boolean permissionGranted = false;
     Intent mServiceIntent;
+    public static String pic;
     Context ctx;
     public static HashMap<String,EmergencyDetails> whor = new HashMap<>();
     private static final int MY_LOCATION_PERMISSION = 101;
@@ -144,7 +163,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
 
-    static String namE=null,phonE=null;
+    static String namE,phonE=null;
     Marker MyMarker;
     DrawerLayout drawerLayout;
     String Uid="0";
@@ -164,6 +183,53 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     FirebaseDatabase firebaseDatabase;
     DatabaseReference databaseReference;
     LocationManager locationManager;
+    static Uri mImageUri;
+    private StorageReference mStorageRef;
+    private DatabaseReference mDatabaseRef;
+    private StorageTask mUploadTask;
+    public static String download;
+    private String getFileExtension(Uri uri) {
+        ContentResolver cR = getContentResolver();
+        MimeTypeMap mime = MimeTypeMap.getSingleton();
+        return mime.getExtensionFromMimeType(cR.getType(uri));
+    }
+
+    private void uploadFile() {
+        if (mImageUri != null) {
+            StorageReference fileReference = mStorageRef.child(System.currentTimeMillis()
+                    + "." + getFileExtension(mImageUri));
+
+            mUploadTask = fileReference.putFile(mImageUri)
+                    .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+//                            Handler handler = new Handler();
+//                            handler.postDelayed(new Runnable() {
+//                                @Override
+//                                public void run() {
+////                                    mProgressBar.setProgress(0);
+//                                }
+//                            }, 500);
+
+                            Toast.makeText(MapsActivity.this, "Upload successful", Toast.LENGTH_LONG).show();
+                            download = taskSnapshot.getDownloadUrl().toString();
+                            PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Download",download).apply();
+                            UploadProfilePic upload = new UploadProfilePic(namE, download);
+                            String uploadId = mDatabaseRef.push().getKey();
+                            mDatabaseRef.child(firebaseUser.getUid()).setValue(upload);
+                            mDatabaseRef.child(uploadId).setValue(upload);
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            Toast.makeText(MapsActivity.this, "ayyo"+e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        } else {
+            Toast.makeText(this, "No file selected", Toast.LENGTH_SHORT).show();
+        }
+    }
 
     private void selectImage(){
         final CharSequence[] items = {"Camera","Gallery","Cancel"};
@@ -191,7 +257,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
 
-
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
 
 
     @Override
@@ -337,15 +408,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void handleResult(GoogleSignInResult result){
         if(result.isSuccess()){
+            boolean network = isNetworkAvailable();
 //            startActivity(new Intent(MapsActivity.this,WelcomeGuide.class));
             GoogleSignInAccount account = result.getSignInAccount();
             assert account != null;
-            namE= account.getDisplayName();
-
+            if(network){
+                namE= account.getDisplayName();
+                Gname = account.getDisplayName();
 //            String email = account.getEmail();
 //            Name.setText(name);
 //            Gmail.setText(email);
-            UpdateUi(true);
+                UpdateUi(true);
+            }
+            else {
+                Toast.makeText(MapsActivity.this,"network issue",Toast.LENGTH_SHORT).show();
+            }
+
         }
         else {
             UpdateUi(false);
@@ -393,15 +471,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         if(resultCode == Activity.RESULT_OK){
             if(requestCode == Request_Camera){
+                if(data!=null){
+                    mImageUri = data.getData();
+                }
                 Bundle bundle = data.getExtras();
                 assert bundle != null;
                 final Bitmap bmp = (Bitmap) bundle.get("data");
                 circleImageView.setImageBitmap(bmp);
+                uploadFile();
                 ProfilePicpath = saveToInternalStorage(bmp);
                 PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Path",ProfilePicpath).apply();
             }
             else if(requestCode == Select_File){
                 Uri selectedUri = data.getData();
+                mImageUri = data.getData();
+                uploadFile();
                 circleImageView.setImageURI(selectedUri);
                 try {
                     Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), selectedUri);
@@ -546,6 +630,20 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        boolean network = isNetworkAvailable();
+
+        if(network){
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if(user!=null){
+                namE = user.getDisplayName();
+            }
+        }
+        else {
+            Toast.makeText(MapsActivity.this,"No internet connection",Toast.LENGTH_SHORT).show();
+        }
+
+
         SDK = android.os.Build.VERSION.SDK_INT;
         if (ContextCompat.checkSelfPermission(MapsActivity.this,
                 Manifest.permission.ACCESS_FINE_LOCATION)
@@ -575,9 +673,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             // Permission has already been granted
         }
 
-        if(!MainActivity.ThroughGoogle){
-            getName();
-        }
+//        if(!MainActivity.ThroughGoogle){
+//            getName();
+//        }
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
@@ -608,6 +706,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         JavaEmerg = findViewById(R.id.Emerg);
         drawerLayout = findViewById(R.id.MAP);
 
+        // new
+        mStorageRef = FirebaseStorage.getInstance().getReference("uploads");
+        mDatabaseRef = FirebaseDatabase.getInstance().getReference("uploads");
+
         toggle = new ActionBarDrawerToggle(this,drawerLayout,R.string.open,R.string.close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
@@ -625,19 +727,19 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         Signin.setOnClickListener(this);
 //        SignOut.setOnClickListener(this);
 
-        if(MainActivity.ThroughGoogle){
-//            navigationView.setVisibility(View.GONE);
-//            drawerLayout.setVisibility(View.GONE);
-            if(apiClient==null){
-                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
-                GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestEmail().build();
-                mapLayout.setVisibility(View.GONE);
-                apiClient = new GoogleApiClient.Builder(this).enableAutoManage(this,this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
-            }
-        }
-        else {
-            GoogleBtn.setVisibility(View.GONE);
-        }
+//        if(MainActivity.ThroughGoogle){
+////            navigationView.setVisibility(View.GONE);
+////            drawerLayout.setVisibility(View.GONE);
+//            if(apiClient==null){
+//                drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+//                GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestEmail().build();
+//                mapLayout.setVisibility(View.GONE);
+//                apiClient = new GoogleApiClient.Builder(this).enableAutoManage(this,this).addApi(Auth.GOOGLE_SIGN_IN_API, options).build();
+//            }
+//        }
+//        else {
+//            GoogleBtn.setVisibility(View.GONE);
+//        }
 //        if(firebaseUser!=null){
 //            ctx = this;
 //            HelloService helloService;
@@ -686,89 +788,103 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         final double MyLong = gps.getLongitude();
 
         if(gps.canGetLocation){
-            if(firebaseUser!=null){
-                ctx = this;
-                HelloService helloService;
-                helloService = new HelloService(getCtx());
-                mServiceIntent = new Intent(getCtx(), helloService.getClass());
-                if (!isMyServiceRunning(helloService.getClass())) {
-                    startService(mServiceIntent);
+            if(isNetworkAvailable()){
+                if(firebaseUser!=null){
+                    ctx = this;
+                    HelloService helloService;
+                    helloService = new HelloService(getCtx());
+                    mServiceIntent = new Intent(getCtx(), helloService.getClass());
+                    if (!isMyServiceRunning(helloService.getClass())) {
+                        startService(mServiceIntent);
+                    }
                 }
             }
+            else {
+                Toast.makeText(MapsActivity.this,"service not started",Toast.LENGTH_SHORT).show();
+            }
+
         }
 
+        if(network){
+            DatabaseReference databaseReferenceRescuer = FirebaseDatabase.getInstance().getReference("Rescuer");
+            databaseReferenceRescuer.addChildEventListener(new ChildEventListener() {
+                @Override
+                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                    Rescuer rescuer = dataSnapshot.getValue(Rescuer.class);
+                    String Uid = dataSnapshot.getKey();
+                    assert rescuer != null;
+                    String name = rescuer.name;
+                    double latitude = rescuer.latitude;
+                    double longitude = rescuer.longitude;
+                    MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).snippet(name);
 
-        DatabaseReference databaseReferenceRescuer = FirebaseDatabase.getInstance().getReference("Rescuer");
-        databaseReferenceRescuer.addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                Rescuer rescuer = dataSnapshot.getValue(Rescuer.class);
-                String Uid = dataSnapshot.getKey();
-                assert rescuer != null;
-                String name = rescuer.name;
-                double latitude = rescuer.latitude;
-                double longitude = rescuer.longitude;
-                MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).snippet(name);
+                    Bitmap bitmap = createEmergencyBitmap();
+                    if(bitmap!=null){
+                        Toast.makeText(MapsActivity.this,"Rescuer call 3",Toast.LENGTH_SHORT).show();
+                        options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
+                        options.anchor(0.5f, 0.907f);
+                    }
 
-                Bitmap bitmap = createEmergencyBitmap();
-                if(bitmap!=null){
-                    options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
-                    options.anchor(0.5f, 0.907f);
-                }
-
-                Marker marker = mMap.addMarker(options);
-                hashMapMarker.put(Uid,marker);
-
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                String Uid = dataSnapshot.getKey();
-                Marker marker = hashMapMarker.get(Uid);
-                if(marker!=null){
-                    marker.remove();
+                    Marker marker = mMap.addMarker(options);
+                    hashMapMarker.put(Uid,marker);
 
                 }
-            }
 
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+                @Override
+                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
 
-            }
+                }
 
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
+                @Override
+                public void onChildRemoved(DataSnapshot dataSnapshot) {
+                    String Uid = dataSnapshot.getKey();
+                    Marker marker = hashMapMarker.get(Uid);
+                    if(marker!=null){
+                        marker.remove();
 
-            }
-        });
+                    }
+                }
 
-        databaseReference = firebaseDatabase.getReference("Emergency");
-        databaseReference.addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                @Override
+                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
-                Emergency emergencyk = dataSnapshot.getValue(Emergency.class);
-                EmergencyDetails emergencyDetailsk = new EmergencyDetails(emergencyk.need,emergencyk.commission,emergencyk.phone,dataSnapshot.getKey());
-                final String name = dataSnapshot.getKey();
-                if(dataSnapshot.child("latitude").getValue()!=null && dataSnapshot.child("longitude").getValue()!=null && dataSnapshot.child("phone")!=null && dataSnapshot.child("need")!=null && dataSnapshot.child("commission") != null){
-                    latitude = (double) dataSnapshot.child("latitude").getValue();
-                    longitude = (double) dataSnapshot.child("longitude").getValue();
-                    final String Phone = (String) dataSnapshot.child("phone").getValue();
-                    final String Need = (String) dataSnapshot.child("need").getValue();
-                    final String Commission = (String) dataSnapshot.child("commission").getValue();
-                    final String Uid = (String) dataSnapshot.child("uid").getValue();
-                    if(!namE.equals(name)){
-                        double dist = DistenceBwTwoLocations.Distence(MyLat,MyLong,latitude,longitude);
+                }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+
+                }
+            });
+        }
+        else {
+            Toast.makeText(MapsActivity.this,"network problem",Toast.LENGTH_SHORT).show();
+        }
+
+       if(network){
+           databaseReference = firebaseDatabase.getReference("Emergency");
+           databaseReference.addChildEventListener(new ChildEventListener() {
+               @Override
+               public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+                   Emergency emergencyk = dataSnapshot.getValue(Emergency.class);
+                   EmergencyDetails emergencyDetailsk = new EmergencyDetails(emergencyk.need,emergencyk.commission,emergencyk.phone,dataSnapshot.getKey());
+                   final String name = dataSnapshot.getKey();
+                   if(dataSnapshot.child("latitude").getValue()!=null && dataSnapshot.child("longitude").getValue()!=null && dataSnapshot.child("phone")!=null && dataSnapshot.child("need")!=null && dataSnapshot.child("commission") != null) {
+                       latitude = (double) dataSnapshot.child("latitude").getValue();
+                       longitude = (double) dataSnapshot.child("longitude").getValue();
+                       final String Phone = (String) dataSnapshot.child("phone").getValue();
+                       final String Need = (String) dataSnapshot.child("need").getValue();
+                       final String Commission = (String) dataSnapshot.child("commission").getValue();
+                       final String Uid = (String) dataSnapshot.child("uid").getValue();
+                       pic = (String) dataSnapshot.child("profilepic").getValue();
+                       if(namE != null){
+                           if (!namE.equals(name)) {
+                               double dist = DistenceBwTwoLocations.Distence(MyLat, MyLong, latitude, longitude);
 //                        if(dist<2000){
-
-                        if(!namE.equals(dataSnapshot.getKey())){
-                            if(noti == 0){
-                                noti++;
+                               if(namE != null){
+                                   if (!namE.equals(dataSnapshot.getKey())) {
+                                       if (noti == 0) {
+                                           noti++;
 //                                    NotificationCompat.Builder builder = new NotificationCompat.Builder(MapsActivity.this,"M_CH_ID");
 //                                    builder.setSmallIcon(R.drawable.ic_launcher);
 //                                    builder.setContentTitle("Emergency Message");
@@ -778,103 +894,103 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                r.play();
 //                                    builder.setSound(notification);
 
-                                Intent intent = new Intent(MapsActivity.this,MapsActivity.class);
-                                TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(MapsActivity.this);
-                                taskStackBuilder.addParentStack(MapsActivity.class);
-                                taskStackBuilder.addNextIntent(intent);
+                                           Intent intent = new Intent(MapsActivity.this, MapsActivity.class);
+                                           TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(MapsActivity.this);
+                                           taskStackBuilder.addParentStack(MapsActivity.class);
+                                           taskStackBuilder.addNextIntent(intent);
 //                                    PendingIntent pendingIntent = taskStackBuilder.getPendingIntent(0,PendingIntent.FLAG_UPDATE_CURRENT);
 //                                    builder.setContentIntent(pendingIntent);
 //                                    NotificationManager notificationManager = (NotificationManager)  getSystemService(getApplicationContext().NOTIFICATION_SERVICE);
 //                                    notificationManager.notify(0,builder.build());
-                            }
-                        }
+                                       }
+                                   }
+                               }
+                               mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+                                   @Override
+                                   public void onInfoWindowClick(final Marker marker) {
+                                       String isRequestAccepted = "No";
+                                       isRequestAccepted = clickmarker.get(marker);
 
-                        mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
-                            @Override
-                            public void onInfoWindowClick(final Marker marker) {
-                                String isRequestAccepted = "No";
-                                isRequestAccepted = clickmarker.get(marker);
+                                       if (isRequestAccepted == null) {
+                                           String[] items = {"Yes", "No"};
+                                           final AlertDialog.Builder itemDilog = new AlertDialog.Builder(MapsActivity.this);
+                                           itemDilog.setTitle("Do you really want to accept request ?");
+                                           itemDilog.setCancelable(true);
+                                           itemDilog.setItems(items, new DialogInterface.OnClickListener() {
+                                               public void onClick(DialogInterface dialog, int which) {
+                                                   switch (which) {
+                                                       case 0: {
 
-                                if(isRequestAccepted == null){
-                                    String[] items={"Yes","No"};
-                                    final AlertDialog.Builder itemDilog = new AlertDialog.Builder(MapsActivity.this);
-                                    itemDilog.setTitle("Do you really want to accept request ?");
-                                    itemDilog.setCancelable(true);
-                                    itemDilog.setItems(items, new DialogInterface.OnClickListener() {
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            switch(which){
-                                                case 0:{
+                                                           Toast.makeText(MapsActivity.this, "Request accepted", Toast.LENGTH_SHORT).show();
+                                                           clickmarker.put(marker, "Accepted");
+                                                           FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+                                                           assert firebaseUser != null;
+                                                           String uid = firebaseUser.getUid();
+                                                           Rescuer rescuer = new Rescuer(MyLat, MyLong, namE, uid);
 
-                                                    Toast.makeText(MapsActivity.this,"Request accepted",Toast.LENGTH_SHORT).show();
-                                                    clickmarker.put(marker,"Accepted");
-                                                    FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-                                                    assert firebaseUser != null;
-                                                    String uid = firebaseUser.getUid();
-                                                    Rescuer rescuer = new Rescuer(MyLat,MyLong,namE,uid);
+                                                           DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Rescuer");
+                                                           databaseReference.child(uid).setValue(rescuer);
+                                                       }
+                                                       break;
+                                                       case 1: {
+                                                           Toast.makeText(MapsActivity.this, "Request rejected", Toast.LENGTH_SHORT).show();
+                                                       }
+                                                       break;
+                                                   }
 
-                                                    DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Rescuer");
-                                                    databaseReference.child(uid).setValue(rescuer);
-                                                }break;
-                                                case 1:{
-                                                    Toast.makeText(MapsActivity.this,"Request rejected",Toast.LENGTH_SHORT).show();
-                                                }break;
-                                            }
+                                               }
+                                           });
+                                           itemDilog.show();
+                                       } else {
+                                           Toast.makeText(MapsActivity.this, "Request already Accepted", Toast.LENGTH_SHORT).show();
+                                       }
 
-                                        }
-                                    });
-                                    itemDilog.show();
-                                }
-                                else {
-                                    Toast.makeText(MapsActivity.this,"Request already Accepted",Toast.LENGTH_SHORT).show();
-                                }
+                                   }
+                               });
 
-                            }
-                        });
-
-                        if(mMap!=null){
-                            mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
-                                @Override
-                                public View getInfoWindow(Marker marker) {
-                                    return null;
-                                }
+                               if (mMap != null) {
+                                   mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
+                                       @Override
+                                       public View getInfoWindow(Marker marker) {
+                                           return null;
+                                       }
 
 
-
-                                @SuppressLint("SetTextI18n")
-                                @Override
-                                public View getInfoContents(Marker marker) {
+                                       @SuppressLint("SetTextI18n")
+                                       @Override
+                                       public View getInfoContents(Marker marker) {
 //                                    View vk = null;
-                                    String amI = hashMapme.get(marker);
+                                           String amI = hashMapme.get(marker);
 
-                                    EmergencyDetails emergencyDetails;
-                                    emergencyDetails = (EmergencyDetails) hashMapMarker1.get(marker);
+                                           EmergencyDetails emergencyDetails;
+                                           emergencyDetails = (EmergencyDetails) hashMapMarker1.get(marker);
 
-                                    if(emergencyDetails!=null){
-                                        View v = getLayoutInflater().inflate(R.layout.accept_request,null);
+                                           if (emergencyDetails != null) {
+                                               View v = getLayoutInflater().inflate(R.layout.accept_request, null);
 
-                                        if(amI == null) {
+                                               if (amI == null) {
+                                                   if(namE != null){
+                                                       if (!namE.equals(name)) {
+                                                           JavaAccept = v.findViewById(R.id.XmlAccept);
+                                                           JavaNameShow = v.findViewById(R.id.XmlName);
+                                                           JavaNeedShow = v.findViewById(R.id.XmlNeedShow);
+                                                           JavaPhoneShow = v.findViewById(R.id.XmlPhoneShow);
+                                                           JavaCommissionShow = v.findViewById(R.id.XmlComissionShow);
+                                                           emergencyDetails = (EmergencyDetails) hashMapMarker1.get(marker);
+                                                           if (JavaNameShow != null && JavaNeedShow != null && JavaCommissionShow != null && JavaPhoneShow != null & emergencyDetails != null) {
+                                                               JavaNameShow.setText(emergencyDetails.nameshow);
+                                                               JavaNeedShow.setText("Need: " + emergencyDetails.needshow);
+                                                               JavaCommissionShow.setText("Commission: " + emergencyDetails.commissionshow);
+                                                               JavaPhoneShow.setText("Phone:" + emergencyDetails.phoneshow);
+                                                           }
 
-                                            if(!namE.equals(name)){
-                                                JavaAccept = v.findViewById(R.id.XmlAccept);
-                                                JavaNameShow = v.findViewById(R.id.XmlName);
-                                                JavaNeedShow = v.findViewById(R.id.XmlNeedShow);
-                                                JavaPhoneShow = v.findViewById(R.id.XmlPhoneShow);
-                                                JavaCommissionShow = v.findViewById(R.id.XmlComissionShow);
-                                                emergencyDetails = (EmergencyDetails) hashMapMarker1.get(marker);
-                                                if(JavaNameShow != null && JavaNeedShow != null && JavaCommissionShow!= null && JavaPhoneShow!=null & emergencyDetails != null){
-                                                    JavaNameShow.setText(emergencyDetails.nameshow);
-                                                    JavaNeedShow.setText("Need: "+emergencyDetails.needshow);
-                                                    JavaCommissionShow.setText("Commission: "+emergencyDetails.commissionshow);
-                                                    JavaPhoneShow.setText("Phone:" +emergencyDetails.phoneshow);
-                                                }
 
-
-                                                JavaAccept.setOnClickListener(new View.OnClickListener() {
-                                                    @Override
-                                                    public void onClick(View v) {
-                                                        Toast.makeText(MapsActivity.this,"Accepted",Toast.LENGTH_SHORT).show();
-                                                    }
-                                                });
+                                                           JavaAccept.setOnClickListener(new View.OnClickListener() {
+                                                               @Override
+                                                               public void onClick(View v) {
+                                                                   Toast.makeText(MapsActivity.this, "Accepted", Toast.LENGTH_SHORT).show();
+                                                               }
+                                                           });
 //                                            else{
 //                                                Toast.makeText(MapsActivity.this,"Solved",Toast.LENGTH_SHORT).show();
 //                                                v = getLayoutInflater().inflate(R.layout.name,null);
@@ -882,141 +998,140 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                                                JavaNameShow.setText("You: "+namE);
 //                                            }
 
-                                            }
+                                                       }
+                                                   }
 //                                        Toast.makeText(MapsActivity.this,"Others",Toast.LENGTH_SHORT).show();
-                                        }
-                                        else{
-                                            Toast.makeText(MapsActivity.this,"rero - Solved",Toast.LENGTH_SHORT).show();
-                                            v = getLayoutInflater().inflate(R.layout.name,null);
-                                            JavaNameShow = v.findViewById(R.id.Xmlnamepro);
-                                            JavaNameShow.setText("You: "+namE);
-                                            Toast.makeText(MapsActivity.this,"You",Toast.LENGTH_SHORT).show();
-                                            return v;
-                                        }
-                                        return v;
-                                    }
-                                    else{
-                                        String who = hashMapme.get(marker);
-                                        if(who == null){
-                                            View v = getLayoutInflater().inflate(R.layout.accept_request,null);
-                                            Toast.makeText(MapsActivity.this,"Orri",Toast.LENGTH_SHORT).show();
-                                            emergencyDetails = (EmergencyDetails) hashMapMarker1.get(marker);
-                                            if(JavaNameShow != null && JavaNeedShow != null && JavaCommissionShow!= null && JavaPhoneShow!=null & emergencyDetails != null){
-                                                JavaNameShow.setText(emergencyDetails.nameshow);
-                                                JavaNeedShow.setText("Need: "+emergencyDetails.needshow);
-                                                JavaCommissionShow.setText("Commission: "+emergencyDetails.commissionshow);
-                                                JavaPhoneShow.setText("Phone:" +emergencyDetails.phoneshow);
-                                                return v;
-                                            }
-                                            if(emergencyDetails == null){
-                                                String id = marker.getId();
-                                                emergencyDetails = whor.get(id);
-                                                v = getLayoutInflater().inflate(R.layout.accept_request,null);
-                                                if(emergencyDetails != null){
-                                                    JavaAccept = v.findViewById(R.id.XmlAccept);
-                                                    JavaNameShow = v.findViewById(R.id.XmlName);
-                                                    JavaNeedShow = v.findViewById(R.id.XmlNeedShow);
-                                                    JavaPhoneShow = v.findViewById(R.id.XmlPhoneShow);
-                                                    JavaCommissionShow = v.findViewById(R.id.XmlComissionShow);
-                                                    JavaNameShow.setText(emergencyDetails.nameshow);
-                                                    JavaNeedShow.setText("Need: "+emergencyDetails.needshow);
-                                                    JavaCommissionShow.setText("Commission: "+emergencyDetails.commissionshow);
-                                                    JavaPhoneShow.setText("Phone:" +emergencyDetails.phoneshow);
-                                                    return v;
-                                                }
-                                                else {
+                                               } else {
+                                                   Toast.makeText(MapsActivity.this, "rero - Solved", Toast.LENGTH_SHORT).show();
+                                                   v = getLayoutInflater().inflate(R.layout.name, null);
+                                                   JavaNameShow = v.findViewById(R.id.Xmlnamepro);
+                                                   JavaNameShow.setText("You: " + namE);
+                                                   Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
+                                                   return v;
+                                               }
+                                               return v;
+                                           } else {
+                                               String who = hashMapme.get(marker);
+                                               if (who == null) {
+                                                   View v = getLayoutInflater().inflate(R.layout.accept_request, null);
+                                                   Toast.makeText(MapsActivity.this, "Orri", Toast.LENGTH_SHORT).show();
+                                                   emergencyDetails = (EmergencyDetails) hashMapMarker1.get(marker);
+                                                   if (JavaNameShow != null && JavaNeedShow != null && JavaCommissionShow != null && JavaPhoneShow != null & emergencyDetails != null) {
+                                                       JavaNameShow.setText(emergencyDetails.nameshow);
+                                                       JavaNeedShow.setText("Need: " + emergencyDetails.needshow);
+                                                       JavaCommissionShow.setText("Commission: " + emergencyDetails.commissionshow);
+                                                       JavaPhoneShow.setText("Phone:" + emergencyDetails.phoneshow);
+                                                       return v;
+                                                   }
+                                                   if (emergencyDetails == null) {
+                                                       String id = marker.getId();
+                                                       emergencyDetails = whor.get(id);
+                                                       v = getLayoutInflater().inflate(R.layout.accept_request, null);
+                                                       if (emergencyDetails != null) {
+                                                           JavaAccept = v.findViewById(R.id.XmlAccept);
+                                                           JavaNameShow = v.findViewById(R.id.XmlName);
+                                                           JavaNeedShow = v.findViewById(R.id.XmlNeedShow);
+                                                           JavaPhoneShow = v.findViewById(R.id.XmlPhoneShow);
+                                                           JavaCommissionShow = v.findViewById(R.id.XmlComissionShow);
+                                                           JavaNameShow.setText(emergencyDetails.nameshow);
+                                                           JavaNeedShow.setText("Need: " + emergencyDetails.needshow);
+                                                           JavaCommissionShow.setText("Commission: " + emergencyDetails.commissionshow);
+                                                           JavaPhoneShow.setText("Phone:" + emergencyDetails.phoneshow);
+                                                           return v;
+                                                       } else {
 
-                                                    // Be carefull here if you get any errors remove this else thats it
+                                                           // Be carefull here if you get any errors remove this else thats it
 
-                                                    Toast.makeText(MapsActivity.this,"keko - Solved",Toast.LENGTH_SHORT).show();
-                                                    v = getLayoutInflater().inflate(R.layout.name,null);
-                                                    JavaNameShow = v.findViewById(R.id.Xmlnamepro);
-                                                    JavaNameShow.setText("You: "+namE);
-                                                    Toast.makeText(MapsActivity.this,"You",Toast.LENGTH_SHORT).show();
-                                                    return v;
-                                                }
+                                                           Toast.makeText(MapsActivity.this, "keko - Solved", Toast.LENGTH_SHORT).show();
+                                                           v = getLayoutInflater().inflate(R.layout.name, null);
+                                                           JavaNameShow = v.findViewById(R.id.Xmlnamepro);
+                                                           JavaNameShow.setText("You: " + namE);
+                                                           Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
+                                                           return v;
+                                                       }
 
-                                            }
-                                            return v;
-                                        }
-                                        else {
-                                            Toast.makeText(MapsActivity.this,"keero - Solved",Toast.LENGTH_SHORT).show();
-                                            View v = getLayoutInflater().inflate(R.layout.name,null);
-                                            JavaNameShow = v.findViewById(R.id.Xmlnamepro);
-                                            JavaNameShow.setText("You: "+namE);
-                                            Toast.makeText(MapsActivity.this,"You",Toast.LENGTH_SHORT).show();
-                                        }
+                                                   }
+                                                   return v;
+                                               } else {
+                                                   Toast.makeText(MapsActivity.this, "keero - Solved", Toast.LENGTH_SHORT).show();
+                                                   View v = getLayoutInflater().inflate(R.layout.name, null);
+                                                   JavaNameShow = v.findViewById(R.id.Xmlnamepro);
+                                                   JavaNameShow.setText("You: " + namE);
+                                                   Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
+                                               }
 
-                                        return null;
-                                    }
+                                               return null;
+                                           }
 
-                                }
-                            });
-                        }
-                        MarkerOptions options = null;
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
-                            int height = 100;
-                            int width = 90;
-                            BitmapDrawable bitmapdraw=(BitmapDrawable)getResources().getDrawable(R.drawable.mylocator);
-                            Bitmap b=bitmapdraw.getBitmap();
-                            Bitmap smallMarker = Bitmap.createScaledBitmap(b, width, height, false);
+                                       }
+                                   });
+                               }
+                               MarkerOptions options = null;
+                               if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                                   int height = 100;
+                                   int width = 90;
+                                   BitmapDrawable bitmapdraw = (BitmapDrawable) getResources().getDrawable(R.drawable.mylocator);
+                                   Bitmap b = bitmapdraw.getBitmap();
+                                   Bitmap smallMarker = Bitmap.createScaledBitmap(b, width, height, false);
 //                        MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).icon(BitmapDescriptorFactory.fromBitmap(smallMarker)).snippet(Need+","+Phone+","+Commission);
-                            options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).snippet(Need+","+Phone+","+Commission);
+                                   options = new MarkerOptions().title(name).position(new LatLng(latitude, longitude)).snippet(Need + "," + Phone + "," + Commission);
 
-                            Bitmap bitmap = createEmergencyBitmap();
-                            if(bitmap!=null){
-                                options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
-                                options.anchor(0.5f, 0.907f);
-                            }
+                                   Bitmap bitmap = createEmergencyBitmap();
+                                   if (bitmap != null) {
+                                       Toast.makeText(MapsActivity.this,"child added call 2",Toast.LENGTH_SHORT).show();
 
-                            Marker marker = mMap.addMarker(options);
-                            hashMapMarker.put(Uid,marker);
-                            String id = marker.getId();
-                            whor.put(id,emergencyDetailsk);
-                            EmergencyDetails emergencyDetails = new EmergencyDetails(Need,Commission,Phone,name);
-                            hashMapMarker1.put(marker,emergencyDetails);
-                            // Do something for lollipop and above versions
-                        } else{
-                            options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).snippet(Need+","+Phone+","+Commission);
-                            Marker marker = mMap.addMarker(options);
-                            hashMapMarker.put(Uid,marker);
-                            String id = marker.getId();
-                            whor.put(id,emergencyDetailsk);
-                            EmergencyDetails emergencyDetails = new EmergencyDetails(Need,Commission,Phone,name);
-                            hashMapMarker1.put(marker,emergencyDetails);
-                            Toast.makeText(MapsActivity.this,"Old"+android.os.Build.VERSION.SDK_INT,Toast.LENGTH_SHORT).show();
-                            // do something for phones running an SDK before lollipop
-                        }
+                                       options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
+                                       options.anchor(0.5f, 0.907f);
+                                   }
 
-
+                                   Marker marker = mMap.addMarker(options);
+                                   hashMapMarker.put(Uid, marker);
+                                   String id = marker.getId();
+                                   whor.put(id, emergencyDetailsk);
+                                   EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
+                                   hashMapMarker1.put(marker, emergencyDetails);
+                                   // Do something for lollipop and above versions
+                               } else {
+                                   options = new MarkerOptions().title(name).position(new LatLng(latitude, longitude)).snippet(Need + "," + Phone + "," + Commission);
+                                   Marker marker = mMap.addMarker(options);
+                                   hashMapMarker.put(Uid, marker);
+                                   String id = marker.getId();
+                                   whor.put(id, emergencyDetailsk);
+                                   EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
+                                   hashMapMarker1.put(marker, emergencyDetails);
+                                   Toast.makeText(MapsActivity.this, "Old" + android.os.Build.VERSION.SDK_INT, Toast.LENGTH_SHORT).show();
+                                   // do something for phones running an SDK before lollipop
+                               }
 
 
 //                        }
-                    }
-                }
-            }
+                           }
+                       }
+                   }
+               }
 
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+               @Override
+               public void onChildChanged(DataSnapshot dataSnapshot, String s) {
 
-                Emergency emergency = dataSnapshot.getValue(Emergency.class);
-                EmergencyDetails emergencyDetailsk = new EmergencyDetails(emergency.need,emergency.commission,emergency.phone,dataSnapshot.getKey());
+                   Emergency emergency = dataSnapshot.getValue(Emergency.class);
+                   EmergencyDetails emergencyDetailsk = new EmergencyDetails(emergency.need,emergency.commission,emergency.phone,dataSnapshot.getKey());
 
-                if(dataSnapshot.child("latitude").getValue()!=null && dataSnapshot.child("longitude").getValue()!=null && dataSnapshot.child("phone")!=null && dataSnapshot.child("need")!=null && dataSnapshot.child("commission") != null) {
-                    String Uid = (String) dataSnapshot.child("uid").getValue();
-                    Marker marker = hashMapMarker.get(Uid);
-                    if(marker!=null){
-                        marker.remove();
-                    }
-                    final String name = dataSnapshot.getKey();
-                    final double latitude = (double) dataSnapshot.child("latitude").getValue();
-                    final double longitude = (double) dataSnapshot.child("longitude").getValue();
-                    final String Phone = (String) dataSnapshot.child("phone").getValue();
-                    final String Need = (String) dataSnapshot.child("need").getValue();
-                    final String Commission = (String) dataSnapshot.child("commission").getValue();
-                    if(!namE.equals(name)){
-                        double dist;
-                        dist = DistenceBwTwoLocations.Distence(MyLat,MyLong,latitude,longitude);
+                   if(dataSnapshot.child("latitude").getValue()!=null && dataSnapshot.child("longitude").getValue()!=null && dataSnapshot.child("phone")!=null && dataSnapshot.child("need")!=null && dataSnapshot.child("commission") != null) {
+                       String Uid = (String) dataSnapshot.child("uid").getValue();
+                       Marker marker = hashMapMarker.get(Uid);
+                       if (marker != null) {
+                           marker.remove();
+                       }
+                       final String name = dataSnapshot.getKey();
+                       final double latitude = (double) dataSnapshot.child("latitude").getValue();
+                       final double longitude = (double) dataSnapshot.child("longitude").getValue();
+                       final String Phone = (String) dataSnapshot.child("phone").getValue();
+                       final String Need = (String) dataSnapshot.child("need").getValue();
+                       final String Commission = (String) dataSnapshot.child("commission").getValue();
+                       if(namE != null){
+                           if (!namE.equals(name)) {
+                               double dist;
+                               dist = DistenceBwTwoLocations.Distence(MyLat, MyLong, latitude, longitude);
 //                        if(dist<2000){
 
 //                            if(!namE.equals(dataSnapshot.getKey())){
@@ -1057,47 +1172,55 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                        BitmapDrawable bitmapdraw=(BitmapDrawable)getResources().getDrawable(R.drawable.mylocator);
 //                        Bitmap b=bitmapdraw.getBitmap();
 //                        Bitmap smallMarker = Bitmap.createScaledBitmap(b, width, height, false);
-                        MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).snippet(Need+","+Phone+","+Commission);
+                               MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude, longitude)).snippet(Need + "," + Phone + "," + Commission);
 //                            MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).snippet(Need+","+Phone+","+Commission);
 
-                        Bitmap bitmap = createEmergencyBitmap();
-                        if(bitmap!=null){
-                            options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
-                            options.anchor(0.5f, 0.907f);
-                        }
+                               Bitmap bitmap = createEmergencyBitmap();
+                               if (bitmap != null) {
+                                   Toast.makeText(MapsActivity.this,"child changed call 1",Toast.LENGTH_SHORT).show();
+                                   options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
+                                   options.anchor(0.5f, 0.907f);
+                               }
 
-                        marker = mMap.addMarker(options);
-                        hashMapMarker.put(Uid,marker);
-                        String id = marker.getId();
-                        whor.put(id,emergencyDetailsk);
-                        EmergencyDetails emergencyDetails = new EmergencyDetails(Need,Commission,Phone,name);
-                        hashMapMarker1.put(marker,emergencyDetails);
+                               marker = mMap.addMarker(options);
+                               hashMapMarker.put(Uid, marker);
+                               String id = marker.getId();
+                               whor.put(id, emergencyDetailsk);
+                               EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
+                               hashMapMarker1.put(marker, emergencyDetails);
 //                        }
-                    }
-                }
+                           }
+                       }
+                   }
 
-            }
+               }
 
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                String Uid = (String) dataSnapshot.child("uid").getValue();
-                Marker marker = hashMapMarker.get(Uid);
-                if(marker!=null){
-                    marker.remove();
+               @Override
+               public void onChildRemoved(DataSnapshot dataSnapshot) {
+                   String Uid = (String) dataSnapshot.child("uid").getValue();
+                   Marker marker = hashMapMarker.get(Uid);
+                   if(marker!=null){
+                       marker.remove();
 
-                }
-            }
+                   }
+               }
 
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+               @Override
+               public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
-            }
+               }
 
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
+               @Override
+               public void onCancelled(DatabaseError databaseError) {
 
-            }
-        });
+               }
+           });
+       }
+       else {
+            Toast.makeText(MapsActivity.this,"problems",Toast.LENGTH_SHORT).show();
+       }
+
+
 
     }
 
@@ -1109,21 +1232,28 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude, longitude), 20.0f));
     }
 
-    public void getName()
-    {
-        firebaseAuth = FirebaseAuth.getInstance();
-        firebaseUser = firebaseAuth.getCurrentUser();
-        assert firebaseUser != null;
-        namE =firebaseUser.getDisplayName();
-    }
+//    public void getName()
+//    {
+//        if(isNetworkAvailable()){
+//            firebaseAuth = FirebaseAuth.getInstance();
+//            firebaseUser = firebaseAuth.getCurrentUser();
+//            if(firebaseUser!=null){
+//                namE =firebaseUser.getDisplayName();
+//            }
+//        }
+//        else {
+//            Toast.makeText(MapsActivity.this,"oh problem",Toast.LENGTH_SHORT).show();
+//        }
+//
+//    }
 
-    public void getPhoneNumber(){
-        firebaseAuth = FirebaseAuth.getInstance();
-        firebaseUser = firebaseAuth.getCurrentUser();
-
-        assert firebaseUser != null;
-        phonE = firebaseUser.getPhoneNumber();
-    }
+//    public void getPhoneNumber(){
+//        firebaseAuth = FirebaseAuth.getInstance();
+//        firebaseUser = firebaseAuth.getCurrentUser();
+//
+//        assert firebaseUser != null;
+//        phonE = firebaseUser.getPhoneNumber();
+//    }
 
 
 
@@ -1215,13 +1345,29 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
+    public static Bitmap getBitmapFromURL(String src) {
+        try {
+            URL url = new URL(src);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoInput(true);
+            connection.connect();
+            InputStream input = connection.getInputStream();
+            Bitmap myBitmap = BitmapFactory.decodeStream(input);
+            return myBitmap;
+        } catch (IOException e) {
+            // Log exception
+            return null;
+        }
+    }
+
     private Bitmap createEmergencyBitmap() {
+        Toast.makeText(MapsActivity.this,"in createEmergencyBitmap method ",Toast.LENGTH_SHORT).show();
         Bitmap result = null;
         try {
             result = Bitmap.createBitmap(dpo(62), dpo(76), Bitmap.Config.ARGB_8888);
             result.eraseColor(Color.TRANSPARENT);
             Canvas canvas = new Canvas(result);
-            Drawable drawable = getResources().getDrawable(R.drawable.locaterored);
+            Drawable drawable = getResources().getDrawable(R.drawable.locaterwhite);
             drawable.setBounds(0, 0, dpo(62), dpo(76));
             drawable.draw(canvas);
 
@@ -1231,6 +1377,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.owl);
             //Bitmap bitmap = BitmapFactory.decodeFile(path.toString()); /*generate bitmap here if your image comes from any url*/
+            bitmap = getBitmapFromURL(pic);
             if (bitmap != null) {
                 BitmapShader shader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
                 Matrix matrix = new Matrix();
@@ -1264,7 +1411,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             String k = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).getString("MapStyle", "defaultStringIfNothingFound");
             switch (k) {
                 case "Navybluemap":
-                    drawable = getResources().getDrawable(R.drawable.whitestrip);
+                    drawable = getResources().getDrawable(R.drawable.locaterwhite);
                     break;
                 case "dark":
                     drawable = getResources().getDrawable(R.drawable.whitestrip);
@@ -1432,7 +1579,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 longitude=83.1907674;
                 if(namE!=null){
 //                    Location location = new Location(namE,latitude,longitude,count);
-                    databaseReference = firebaseDatabase.getReference("Location");
+//                    databaseReference = firebaseDatabase.getReference("Location");
 //                    databaseReference.child(Uid).setValue(location);
                 }
 
@@ -1451,7 +1598,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         final String InputNeed,InputPhone,InputCommission;
                         InputNeed = JavaNeed.getText().toString().trim();
                         InputPhone = JavaPhone.getText().toString().trim();
-                        getPhoneNumber();
+//                        getPhoneNumber();
 
                         InputCommission = JavaComission.getText().toString().trim();
                         if(TextUtils.isEmpty(InputNeed) && TextUtils.isEmpty(InputPhone)){
@@ -1488,7 +1635,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             String date = DateFormat.getDateInstance(DateFormat.FULL).format(rightNow.getTime());
                             SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
                             String time = dateFormat.format(rightNow.getTime());
-                            Emergency emergency = new Emergency(latitude,longitude,InputNeed,InputCommission,InputPhone,Uid,count,date,time);
+                            String k = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).getString("Download", null);
+                            Emergency emergency = new Emergency(latitude,longitude,InputNeed,InputCommission,InputPhone,Uid,count,date,time,k);
                             DatabaseReference databaseReferenceE = firebaseDatabase.getReference("EmergencyHistory");
                             databaseReference = firebaseDatabase.getReference("Emergency");
                             deleteReference = databaseReference;
@@ -1528,30 +1676,76 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
         if(v == JavaLocateMe){
+            gps = new GPSTracker(MapsActivity.this);
+            if(gps.canGetLocation()){
+                if(isNetworkAvailable()){
+                    GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(MapsActivity.this);
+                    if(account!=null){
+                        namE = account.getDisplayName();
+                        Toast.makeText(MapsActivity.this,"Welcome "+namE,Toast.LENGTH_SHORT).show();
+                    }
+                    else {
+                        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                        if(user!=null){
+                            namE = user.getDisplayName();
+                            Toast.makeText(MapsActivity.this,"Welcome "+namE,Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+                else {
+                    Toast.makeText(MapsActivity.this,"please turn on location,if not turned on",Toast.LENGTH_SHORT).show();
+                }
 
-            count=0;
-            if(t!=null)
-            {
+
+
+                count=0;
+                if(t!=null)
+                {
 //                t=null;
 ////                t.interrupt();
-                isRunning=true;
-            }
+                    isRunning=true;
+                }
 
-            if(MyMarker != null){
-                MyMarker.remove();
-            }
+                if(MyMarker != null){
+                    MyMarker.remove();
+                }
 
 
-            if(firebaseUser != null){
-                Uid = firebaseUser.getUid();
-            }
+                if(firebaseUser != null){
+                    Uid = firebaseUser.getUid();
+                }
 
-            gps = new GPSTracker(MapsActivity.this);
+//                gps = new GPSTracker(MapsActivity.this);
+                latitude = gps.getLatitude();
+                longitude = gps.getLongitude();
+                if(isNetworkAvailable()){
+                    Location location = new Location(namE,latitude,longitude);
+                    DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Location");
+                    databaseReference.child(Uid).setValue(location);
+                }
 
-            latitude=gps.getLatitude();
-            longitude=gps.getLongitude();
-            LatLng home = new LatLng(latitude,longitude);
-            if(namE!=null){
+
+                LatLng home = new LatLng(latitude,longitude);
+
+//                FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+//                assert firebaseUser != null;
+//                if(isNetworkAvailable()){
+//                    if(MainActivity.ThroughGoogle){
+//                        namE = Gname;
+//                        Toast.makeText(MapsActivity.this,"Google name",Toast.LENGTH_SHORT).show();
+//                    }
+//                    else {
+//                        if(firebaseUser!=null){
+//
+//                        }
+//
+//                    }
+//
+//                }
+//                else {
+//                    Toast.makeText(MapsActivity.this,"name",Toast.LENGTH_SHORT).show();
+//                }
+                if(namE!=null){
 //                int height = 150;
 //                int width = 140;
 //                BitmapDrawable bitmapdraw=(BitmapDrawable)getResources().getDrawable(R.drawable.mylocator);
@@ -1560,102 +1754,104 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                MyMarker = mMap.addMarker(new MarkerOptions().position(home).icon(BitmapDescriptorFactory.fromBitmap(smallMarker)).title("You1:"+namE));
 //                hashMapme.put(MyMarker,"BLUE");
 
-                LatLng latLng = new LatLng(latitude,longitude);
+                    LatLng latLng = new LatLng(latitude,longitude);
 //                MarkerOptions options = new MarkerOptions().position(latLng).snippet(namE);
-                MarkerOptions options = new MarkerOptions().title("You: "+namE).position(new LatLng(latitude,longitude)).icon(BitmapDescriptorFactory
-                        .defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+                    MarkerOptions options = new MarkerOptions().title("You: "+namE).position(new LatLng(latitude,longitude)).icon(BitmapDescriptorFactory
+                            .defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
 
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
-                    // Do something for lollipop and above versions
-                    Bitmap bitmap = createUserBitmap();
-                    if(bitmap!=null){
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
+                        // Do something for lollipop and above versions
+                        Bitmap bitmap = createUserBitmap();
+                        if(bitmap!=null){
 
-                        options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
-                        options.anchor(0.5f, 0.907f);
+                            options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
+                            options.anchor(0.5f, 0.907f);
+                            MyMarker = mMap.addMarker(options);
+                            mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+                            String e = MyMarker.getId();
+                            isPresent.put("isPresent",MyMarker);
+                            hashMapme.put(MyMarker,"BLUE");
+//                        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+//                        mMap.animateCamera(CameraUpdateFactory.zoomTo(15), 2000, null);
+                        }
+                    } else{
                         MyMarker = mMap.addMarker(options);
-                        String e = MyMarker.getId();
-                        isPresent.put("isPresent",MyMarker);
-                        hashMapme.put(MyMarker,"BLUE");
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-                        mMap.animateCamera(CameraUpdateFactory.zoomTo(15), 2000, null);
+                        // do something for phones running an SDK before lollipop
                     }
-                } else{
-                    MyMarker = mMap.addMarker(options);
-                    // do something for phones running an SDK before lollipop
+
+
+
+                }
+                else {
+                    Toast.makeText(MapsActivity.this,"name not recieved",Toast.LENGTH_SHORT).show();
                 }
 
-
-
-            }
-            else {
-                Toast.makeText(MapsActivity.this,"name not recieved",Toast.LENGTH_SHORT).show();
-            }
-
-            if(!gps.canGetLocation()){
-                gps.showSettingsAlert();
-            }
-            else{
-                t = new Thread("T"){
-                    @Override
-                    public void run(){
-                        while(t!=null){
+                if(!gps.canGetLocation()){
+                    gps.showSettingsAlert();
+                }
+                else{
+                    t = new Thread("T"){
+                        @Override
+                        public void run(){
+                            while(t!=null){
 //                            while (!t.isInterrupted()){
-                            try{
-                                sleep(1000 * 10); // 10 second
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        count++;
-                                        latitude=gps.getLatitude();
-                                        longitude=gps.getLongitude();
+                                try{
+                                    sleep(1000 * 10); // 10 second
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            count++;
+                                            latitude=gps.getLatitude();
+                                            longitude=gps.getLongitude();
 
-                                        if(MyMarker != null){
-                                            MyMarker.remove();
-                                        }
+                                            if(MyMarker != null){
+                                                MyMarker.remove();
+                                            }
 
-                                        LatLng latLng = new LatLng(latitude,longitude);
-                                        MarkerOptions options = new MarkerOptions().position(latLng).title("You: "+namE).icon(BitmapDescriptorFactory
-                                                .defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
-                                            // Do something for lollipop and above versions
-                                            Bitmap bitmap = createUserBitmap();
-                                            if(bitmap!=null){
-                                                options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
-                                                options.anchor(0.5f, 0.907f);
-                                                if(t != null){
-                                                    MyMarker = mMap.addMarker(options);
-                                                }
-                                                if(t == null){
-                                                    MyMarker.remove();
-                                                }
-                                                hashMapme.put(MyMarker,"BLUE");
+                                            LatLng latLng = new LatLng(latitude,longitude);
+                                            MarkerOptions options = new MarkerOptions().position(latLng).title("You: "+namE).icon(BitmapDescriptorFactory
+                                                    .defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+                                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
+                                                // Do something for lollipop and above versions
+                                                Bitmap bitmap = createUserBitmap();
+                                                if(bitmap!=null){
+                                                    options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
+                                                    options.anchor(0.5f, 0.907f);
+                                                    if(t != null){
+                                                        MyMarker = mMap.addMarker(options);
+                                                    }
+                                                    if(t == null){
+                                                        MyMarker.remove();
+                                                    }
+                                                    hashMapme.put(MyMarker,"BLUE");
 //                                            mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
 //                                            mMap.animateCamera(CameraUpdateFactory.zoomTo(15), 2000, null);
+                                                }
+                                            } else{
+                                                MyMarker = mMap.addMarker(options);
+                                                // do something for phones running an SDK before lollipop
                                             }
-                                        } else{
-                                            MyMarker = mMap.addMarker(options);
-                                            // do something for phones running an SDK before lollipop
+
                                         }
 
-                                    }
-
-                                });
-                            }
-                            catch (Exception e){
-                                e.printStackTrace();
-                            }
+                                    });
+                                }
+                                catch (Exception e){
+                                    e.printStackTrace();
+                                }
 //                            }
+                            }
+
+
+
                         }
+                    };
 
-
-
+                    if(!isRunning){
+                        t.start();
+                        isRunning=true;
                     }
-                };
-
-                if(!isRunning){
-                    t.start();
-                    isRunning=true;
-                }
 
 //                if(t == null){
 //                    t.start();
@@ -1666,8 +1862,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 //                mMap.moveCamera(CameraUpdateFactory.newLatLng(home));
 //                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(gps.getLatitude(),gps.getLongitude()), 17.0f));
+                }
             }
-
+            else if(!gps.canGetLocation()){
+                gps.showSettingsAlert();
+            }
         }
     }
 

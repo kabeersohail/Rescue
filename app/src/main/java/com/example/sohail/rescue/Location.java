@@ -1,52 +1,40 @@
 package com.example.sohail.rescue;
 
-/**
- * Created by DELL on 26-Mar-18.
- */
-
 public class Location {
-    String Name;
-    double Latitude,Longitude;
-    int Seconds;
 
-    public Location(){}
+    String namE;
+    double latitude,longitude;
 
-    public Location(String Name,double Latitude,double Longitude,int seconds){
-        this.Name=Name;
-        this.Latitude=Latitude;
-        this.Longitude=Longitude;
-        this.Seconds = seconds;
+    public Location() {
     }
 
-    public String getName() {
-        return Name;
+    public Location(String namE, double latitude, double longitude) {
+        this.namE = namE;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
-    public void setName(String name) {
-        Name = name;
+    public String getNamE() {
+        return namE;
+    }
+
+    public void setNamE(String namE) {
+        this.namE = namE;
     }
 
     public double getLatitude() {
-        return Latitude;
+        return latitude;
     }
 
     public void setLatitude(double latitude) {
-        Latitude = latitude;
+        this.latitude = latitude;
     }
 
     public double getLongitude() {
-        return Longitude;
+        return longitude;
     }
 
     public void setLongitude(double longitude) {
-        Longitude = longitude;
-    }
-
-    public int getSeconds() {
-        return Seconds;
-    }
-
-    public void setSeconds(int seconds) {
-        Seconds = seconds;
+        this.longitude = longitude;
     }
 }

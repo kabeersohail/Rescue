@@ -1,7 +1,10 @@
 package com.example.sohail.rescue;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -36,7 +39,8 @@ import java.util.Arrays;
 
 //import static com.example.dell.rescue.MapsActivity.namE;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener,GoogleApiClient.OnConnectionFailedListener{
+public class MainActivity extends AppCompatActivity {
+        //implements View.OnClickListener,GoogleApiClient.OnConnectionFailedListener{
     public static boolean ThroughGoogle=false;
     ProgressDialog progressDialog;
     private static final int RC_SIGN_IN = 1;
@@ -56,146 +60,165 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        progressDialog = new ProgressDialog(this);
-
-        firebaseAuth = FirebaseAuth.getInstance();
-        firebaseUser = firebaseAuth.getCurrentUser();
-
-        JavaSignIn = findViewById(R.id.XmlSignIn);
-        JavaSignUp = findViewById(R.id.XmlSignUp);
-        JavaEmail = findViewById(R.id.XmlEmail);
-        JavaPassword = findViewById(R.id.XmlPassword);
-
-        JavaSignIn.setOnClickListener(this);
-        JavaSignUp.setOnClickListener(this);
-        GoogleSignIn = findViewById(R.id.XmlGoogleSignIn);
-        GoogleSignIn.setOnClickListener(this);
-        stateListener = new FirebaseAuth.AuthStateListener() {
-            @Override
-            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                FirebaseUser user = firebaseAuth.getCurrentUser();
-                if(user != null){
-                    int visited = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).getInt("Visited",0);
-                    if(visited>0){
-                        startActivity(new Intent(MainActivity.this,MapsActivity.class));
-                    }
-                    startActivity(new Intent(MainActivity.this,WelcomeGuide.class));
-                    //Signed in
-
-                }
-                else {
-                    //Signed out
-//                    startActivity(new Intent(MainActivity.this,MainActivity.class));
-                }
-            }
-        };
+        startActivity(new Intent(MainActivity.this,SignIn.class));
+//        progressDialog = new ProgressDialog(this);
+//
+//        firebaseAuth = FirebaseAuth.getInstance();
+//        firebaseUser = firebaseAuth.getCurrentUser();
+//
+//        JavaSignIn = findViewById(R.id.XmlSignIn);
+//        JavaSignUp = findViewById(R.id.XmlSignUp);
+//        JavaEmail = findViewById(R.id.XmlEmail);
+//        JavaPassword = findViewById(R.id.XmlPassword);
+//
+//        JavaSignIn.setOnClickListener(this);
+//        JavaSignUp.setOnClickListener(this);
+//        GoogleSignIn = findViewById(R.id.XmlGoogleSignIn);
+//        GoogleSignIn.setOnClickListener(this);
+//        stateListener = new FirebaseAuth.AuthStateListener() {
+//            @Override
+//            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+//                FirebaseUser user = firebaseAuth.getCurrentUser();
+//                if(user != null){
+//                    int visited = PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).getInt("Visited",0);
+//                    if(visited>0){
+//                        startActivity(new Intent(MainActivity.this,MapsActivity.class));
+//                    }
+//                    startActivity(new Intent(MainActivity.this,WelcomeGuide.class));
+//                    //Signed in
+//
+//                }
+//                else {
+//                    //Signed out
+////                    startActivity(new Intent(MainActivity.this,MainActivity.class));
+//                }
+//            }
+//        };
     }
 
-    @Override
-    public void onStart() {
-        super.onStart();
-        // Check if user is signed in (non-null) and update UI accordingly.
-        FirebaseUser currentUser = firebaseAuth.getCurrentUser();
-        UpdateUI(currentUser);
-    }
+//    @Override
+//    public void onStart() {
+//        super.onStart();
+//        // Check if user is signed in (non-null) and update UI accordingly.
+//        FirebaseUser currentUser = firebaseAuth.getCurrentUser();
+//        UpdateUI(currentUser);
+//    }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        firebaseAuth.addAuthStateListener(stateListener);
-    }
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//        firebaseAuth.addAuthStateListener(stateListener);
+//    }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        firebaseAuth.removeAuthStateListener(stateListener);
-    }
+//    @Override
+//    protected void onPause() {
+//        super.onPause();
+//        firebaseAuth.removeAuthStateListener(stateListener);
+//    }
 
-    private void UpdateUI(FirebaseUser currentUser) {
-        if(currentUser != null){
-            startActivity(new Intent(this,MapsActivity.class));
-        }
-        else {
+//    private void UpdateUI(FirebaseUser currentUser) {
+//        if(currentUser != null){
+//            startActivity(new Intent(this,MapsActivity.class));
+//        }
+//        else {
+//
+//        }
+//    }
 
-        }
-    }
 
-
-    @Override
-    public void onClick(View v) {
-        if(v == JavaSignIn){
-            String InputEmail,InputPassword;
-
-            InputEmail = JavaEmail.getText().toString().trim();
-            InputPassword = JavaPassword.getText().toString().trim();
-
-            if(TextUtils.isEmpty(InputEmail) && TextUtils.isEmpty(InputPassword)){
-                Toast.makeText(this,"Please enter data",Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            if(TextUtils.isEmpty(InputEmail)){
-                Toast.makeText(this,"Please enter email",Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            if(TextUtils.isEmpty(InputPassword)) {
-                Toast.makeText(this,"Please enter password",Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            progressDialog.setMessage("Sigining in");
-            progressDialog.show();
-
-            firebaseAuth.signInWithEmailAndPassword(InputEmail,InputPassword).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-                @Override
-                public void onComplete(@NonNull Task<AuthResult> task) {
-                    if(task.isSuccessful()){
-                        Log.d("TAG","SignInWithEmailAndPassword:Successful");
-
-                        progressDialog.dismiss();
-                        Toast.makeText(MainActivity.this,"Sign in successful",Toast.LENGTH_SHORT).show();
-                        UpdateUI(firebaseUser);
-                        startActivity(new Intent(MainActivity.this,MapsActivity.class));
-
-                    }
-                    else {
-                        Log.w("Tag","SignInWithEmailAndPassword:Failure",task.getException());
-                        progressDialog.dismiss();
-                        Toast.makeText(MainActivity.this,"Authentication failed",Toast.LENGTH_SHORT).show();
-                        UpdateUI(null);
-                    }
-                }
-            });
-        }
-
-        if(v == JavaSignUp) {
-            startActivity(new Intent(MainActivity.this,Registration.class));
-        }
-
-        if(v == GoogleSignIn){
-//            MapsActivity.namE="SohaiL";
-//            ThroughGoogle=true;
-//            startActivity(new Intent(MainActivity.this,MapsActivity.class));
-            startActivityForResult(
-                    AuthUI.getInstance()
-                            .createSignInIntentBuilder()
-                            .setAvailableProviders(Arrays.asList(
-//                                    new AuthUI.IdpConfig.EmailBuilder().build(),
-//                                    new AuthUI.IdpConfig.PhoneBuilder().build(),
-                                    new AuthUI.IdpConfig.GoogleBuilder().build()
-//                                    new AuthUI.IdpConfig.FacebookBuilder().build(),
-//                                    new AuthUI.IdpConfig.TwitterBuilder().build()
-                            ))
-                            .build(),
-                    RC_SIGN_IN);
-        }
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
-    }
+//    @Override
+//    public void onClick(View v) {
+//        if(v == JavaSignIn){
+//            String InputEmail,InputPassword;
+//
+//            InputEmail = JavaEmail.getText().toString().trim();
+//            InputPassword = JavaPassword.getText().toString().trim();
+//
+//            if(TextUtils.isEmpty(InputEmail) && TextUtils.isEmpty(InputPassword)){
+//                Toast.makeText(this,"Please enter data",Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//
+//            if(TextUtils.isEmpty(InputEmail)){
+//                Toast.makeText(this,"Please enter email",Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//
+//            if(TextUtils.isEmpty(InputPassword)) {
+//                Toast.makeText(this,"Please enter password",Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//
+//            progressDialog.setMessage("Sigining in");
+//            progressDialog.show();
+//
+//            firebaseAuth.signInWithEmailAndPassword(InputEmail,InputPassword).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+//                @Override
+//                public void onComplete(@NonNull Task<AuthResult> task) {
+//                    if(task.isSuccessful()){
+//                        Log.d("TAG","SignInWithEmailAndPassword:Successful");
+//
+//                        progressDialog.dismiss();
+//                        Toast.makeText(MainActivity.this,"Sign in successful",Toast.LENGTH_SHORT).show();
+//                        UpdateUI(firebaseUser);
+//                        startActivity(new Intent(MainActivity.this,MapsActivity.class));
+//
+//                    }
+//                    else {
+//                        Log.w("Tag","SignInWithEmailAndPassword:Failure",task.getException());
+//                        progressDialog.dismiss();
+//                        Toast.makeText(MainActivity.this,"Authentication failed",Toast.LENGTH_SHORT).show();
+//                        UpdateUI(null);
+//                    }
+//                }
+//            });
+//        }
+//
+//        if(v == JavaSignUp) {
+//            startActivity(new Intent(MainActivity.this,Registration.class));
+//        }
+//
+//        if(v == GoogleSignIn){
+//            boolean internet = isNetworkAvailable();
+//            if(internet){
+////                startActivity(new Intent(MainActivity.this,MainActivity.class));
+//                progressDialog.setMessage("Loading");
+//                progressDialog.show();
+////            MapsActivity.namE="SohaiL";
+////            ThroughGoogle=true;
+////            startActivity(new Intent(MainActivity.this,MapsActivity.class));
+//                startActivityForResult(
+//                        AuthUI.getInstance()
+//                                .createSignInIntentBuilder()
+//                                .setAvailableProviders(Arrays.asList(
+////                                    new AuthUI.IdpConfig.EmailBuilder().build(),
+////                                    new AuthUI.IdpConfig.PhoneBuilder().build(),
+//                                        new AuthUI.IdpConfig.GoogleBuilder().build()
+////                                    new AuthUI.IdpConfig.FacebookBuilder().build(),
+////                                    new AuthUI.IdpConfig.TwitterBuilder().build()
+//                                ))
+//                                .build(),
+//                        RC_SIGN_IN);
+//                progressDialog.dismiss();
+//            }
+//            else {
+//                Toast.makeText(MainActivity.this,"no internet connection",Toast.LENGTH_SHORT).show();
+//
+//            }
+//
+//        }
+//    }
+//
+//    @Override
+//    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+//        Toast.makeText(MainActivity.this,"Connection faild,try agin",Toast.LENGTH_SHORT).show();
+//    }
+//
+//    private boolean isNetworkAvailable() {
+//        ConnectivityManager connectivityManager
+//                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+//        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+//        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+//    }
 }
 

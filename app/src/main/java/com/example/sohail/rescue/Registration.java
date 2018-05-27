@@ -12,6 +12,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
@@ -104,7 +105,10 @@ public class Registration extends AppCompatActivity implements View.OnClickListe
                 @Override
                 public void onComplete(@NonNull Task<AuthResult> task) {
                     if(task.isSuccessful()){
+                        databaseReference = firebaseDatabase.getReference("userNames");
                         firebaseUser = firebaseAuth.getCurrentUser();
+                        String userId = firebaseUser.getUid();
+                        databaseReference.child(userId).setValue(InputName);
                         progressDialog.dismiss();
                         Toast.makeText(Registration.this,"Sign up Successful",Toast.LENGTH_SHORT).show();
                         if(firebaseUser != null){
@@ -116,13 +120,18 @@ public class Registration extends AppCompatActivity implements View.OnClickListe
                                     if(user!=null){
                                         UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
                                                 .setDisplayName(InputName).build();
-                                        user.updateProfile(profileUpdates);
+                                        user.updateProfile(profileUpdates).addOnSuccessListener(new OnSuccessListener<Void>() {
+                                            @Override
+                                            public void onSuccess(Void aVoid) {
+                                                finish();
+                                                startActivity(new Intent(Registration.this,WelcomeGuide.class));
+                                            }
+                                        });
 
                                     }
                                 }
 
-                        finish();
-                        startActivity(new Intent(Registration.this,WelcomeGuide.class));
+
                     }
                     else{
                         Toast.makeText(Registration.this,"Authentication failed",Toast.LENGTH_SHORT).show();

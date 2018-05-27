@@ -8,12 +8,20 @@ public class Emergency {
     String need,phone,commission,uid;
     String time;
     String date;
-
+    String profilepic;
     public Emergency(){
 
     }
 
-    public Emergency(double Latitude,double Longitude,String Need,String commission,String phone,String Uid,int Count,String date,String time){
+    public String getProfilepic() {
+        return profilepic;
+    }
+
+    public void setProfilepic(String profilepic) {
+        this.profilepic = profilepic;
+    }
+
+    public Emergency(double Latitude, double Longitude, String Need, String commission, String phone, String Uid, int Count, String date, String time, String profilepic){
         this.latitude = Latitude;
         this.longitude = Longitude;
         this.need = Need;
@@ -22,6 +30,7 @@ public class Emergency {
         this.uid = Uid;
         this.time = time;
         this.date = date;
+        this.profilepic = profilepic;
     }
 
     public String getTime() {
