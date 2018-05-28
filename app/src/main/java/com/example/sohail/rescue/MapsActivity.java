@@ -261,9 +261,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             download = taskSnapshot.getDownloadUrl().toString();
                             PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Download",download).apply();
                             UploadProfilePic upload = new UploadProfilePic(namE, download);
-                            String uploadId = mDatabaseRef.push().getKey();
-                            mDatabaseRef.child(firebaseUser.getUid()).setValue(upload);
-                            mDatabaseRef.child(uploadId).setValue(upload);
+//                            String uploadId = mDatabaseRef.push().getKey();
+//                            mDatabaseRef.child(firebaseUser.getUid()).setValue(upload);
+//                            mDatabaseRef.child(uploadId).setValue(upload);
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
@@ -285,26 +285,68 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 if(items[which].equals("Camera")){
-                    Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                    startActivityForResult(intent,Request_Camera);
+                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
+                    FirebaseStorage firebaseStorage;
+                    firebaseStorage = FirebaseStorage.getInstance();
+                    if(download!=null){
+                        StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
+                        propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                            @Override
+                            public void onSuccess(Void aVoid) {
+                                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                                startActivityForResult(intent,Request_Camera);
+                                Toast.makeText(MapsActivity.this,"Profile pic changed",Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                    else {
+                        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                        startActivityForResult(intent,Request_Camera);
+                    }
+
+
                 }
-                else if(items[which].equals("Removie profile pic")){
+                else if(items[which].equals("Remove profile pic")){
                     circleImageView.setImageResource(R.drawable.profilepic);
                     PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
                     FirebaseStorage firebaseStorage;
                     firebaseStorage = FirebaseStorage.getInstance();
-                    StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
-                    propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void aVoid) {
-                            Toast.makeText(MapsActivity.this,"Removed",Toast.LENGTH_SHORT).show();
-                        }
-                    });
+                    if(download != null){
+                        StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
+                        propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                            @Override
+                            public void onSuccess(Void aVoid) {
+                                Toast.makeText(MapsActivity.this,"Removed",Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                    else {
+                        Toast.makeText(MapsActivity.this,"profile pic not present",Toast.LENGTH_SHORT).show();
+                    }
                 }
                 else if(items[which].equals("Gallery")){
-                    Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                    intent.setType("image/*");
-                    startActivityForResult(Intent.createChooser(intent,"Select File"),Select_File);
+                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
+                    FirebaseStorage firebaseStorage;
+                    firebaseStorage = FirebaseStorage.getInstance();
+                    if(download != null){
+                        StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
+                        propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                            @Override
+                            public void onSuccess(Void aVoid) {
+                                Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                                intent.setType("image/*");
+                                startActivityForResult(Intent.createChooser(intent,"Select File"),Select_File);
+                                Toast.makeText(MapsActivity.this,"Profile pic Changed",Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
+                    else {
+                        Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                        intent.setType("image/*");
+                        startActivityForResult(Intent.createChooser(intent,"Select File"),Select_File);
+                    }
+
+
                 }
                 else if(items[which].equals("Cancel")){
                     dialog.dismiss();
@@ -556,9 +598,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 ProfilePicpath = saveToInternalStorage(bmp);
                 PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Path",ProfilePicpath).apply();
             }
-            else if(requestCode == REMOVE_PROFILE_PIC){
-                Toast.makeText(MapsActivity.this,"Removed",Toast.LENGTH_SHORT).show();
-            }
             else if(requestCode == Select_File){
                 Uri selectedUri = data.getData();
                 mImageUri = data.getData();
@@ -786,7 +825,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // new
         mStorageRef = FirebaseStorage.getInstance().getReference("uploads");
-        mDatabaseRef = FirebaseDatabase.getInstance().getReference("uploads");
+//        mDatabaseRef = FirebaseDatabase.getInstance().getReference("uploads");
 
         toggle = new ActionBarDrawerToggle(this,drawerLayout,R.string.open,R.string.close);
         drawerLayout.addDrawerListener(toggle);
@@ -1212,6 +1251,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                        final String Phone = (String) dataSnapshot.child("phone").getValue();
                        final String Need = (String) dataSnapshot.child("need").getValue();
                        final String Commission = (String) dataSnapshot.child("commission").getValue();
+                       pic = (String) dataSnapshot.child("profilepic").getValue();
                        if(namE != null){
                            if (!namE.equals(name)) {
                                double dist;
@@ -1961,7 +2001,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onBackPressed() {
-        MyMarker.remove();
+        if(MyMarker!=null){
+            MyMarker.remove();
+        }
         closeContextMenu();
 //        Toast.makeText(MapsActivity.this,"No going back",Toast.LENGTH_SHORT).show();
     }
