@@ -76,7 +76,7 @@ public class HelloService extends Service {
                 @Override
                 public void onChildAdded(DataSnapshot dataSnapshot, String s) {
                     if(k == 0){
-                        Toast.makeText(HelloService.this,"Child Added",Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(HelloService.this,"Child Added",Toast.LENGTH_SHORT).show();
                         String name = dataSnapshot.getKey();
                         Emergency emergency = dataSnapshot.getValue(Emergency.class);
 ////                    double latitude = emergency.latitude;
@@ -118,7 +118,7 @@ public class HelloService extends Service {
 
                 @Override
                 public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-                    Toast.makeText(HelloService.this,"Child changed",Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(HelloService.this,"Child changed",Toast.LENGTH_SHORT).show();
                     String name = dataSnapshot.getKey();
                     Emergency emergency = dataSnapshot.getValue(Emergency.class);
                     double latitude = emergency.latitude;
@@ -154,12 +154,12 @@ public class HelloService extends Service {
 
                 @Override
                 public void onChildRemoved(DataSnapshot dataSnapshot) {
-                    Toast.makeText(HelloService.this,"Child deleted",Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(HelloService.this,"Child deleted",Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-                    Toast.makeText(HelloService.this,"Child moved",Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(HelloService.this,"Child moved",Toast.LENGTH_SHORT).show();
 
                     String name = dataSnapshot.getKey();
                     Emergency emergency = dataSnapshot.getValue(Emergency.class);
@@ -196,7 +196,7 @@ public class HelloService extends Service {
 
                 @Override
                 public void onCancelled(DatabaseError databaseError) {
-                    Toast.makeText(HelloService.this,"Child canceled",Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(HelloService.this,"Child canceled",Toast.LENGTH_SHORT).show();
 
                 }
             });
@@ -248,7 +248,7 @@ public class HelloService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Toast.makeText(HelloService.this,"Service starting",Toast.LENGTH_SHORT).show();
+//        Toast.makeText(HelloService.this,"Service starting",Toast.LENGTH_SHORT).show();
         super.onStartCommand(intent, flags, startId);
         startTimer();
         Message msg = mServiceHandler.obtainMessage();
@@ -268,7 +268,7 @@ public class HelloService extends Service {
     public void onDestroy() {
         super.onDestroy();
         Log.i("EXIT", "ondestroy!");
-        Toast.makeText(context,"Destroy",Toast.LENGTH_SHORT).show();
+//        Toast.makeText(context,"Destroy",Toast.LENGTH_SHORT).show();
         Intent broadcastIntent = new Intent("com.example.dell.rescue.RestartSensor");
         sendBroadcast(broadcastIntent);
         stoptimertask();

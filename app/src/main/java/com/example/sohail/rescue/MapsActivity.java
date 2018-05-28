@@ -36,6 +36,7 @@ import android.media.RingtoneManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
@@ -103,6 +104,9 @@ import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.StorageTask;
 import com.google.firebase.storage.UploadTask;
+import com.squareup.picasso.Callback;
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -188,10 +192,51 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private DatabaseReference mDatabaseRef;
     private StorageTask mUploadTask;
     public static String download;
+    public static Bitmap bitmapoo = null;
     private String getFileExtension(Uri uri) {
         ContentResolver cR = getContentResolver();
         MimeTypeMap mime = MimeTypeMap.getSingleton();
         return mime.getExtensionFromMimeType(cR.getType(uri));
+    }
+
+    class LoadProfilePic extends AsyncTask<String,Void,Bitmap>{
+
+        String Need,Phone,Commission,name,Uidk;
+        double latitude,longitude;
+        EmergencyDetails emergencyDetailsk;
+
+        public LoadProfilePic(String need, String phone, String commission, double latitude, double longitude, String name,EmergencyDetails emergencyDetailsk,String Uid) {
+            Need = need;
+            Phone = phone;
+            Commission = commission;
+            this.latitude = latitude;
+            this.longitude = longitude;
+            this.name = name;
+            this.emergencyDetailsk = emergencyDetailsk;
+            this.Uidk = Uid;
+        }
+
+        @Override
+        protected Bitmap doInBackground(String... strings) {
+            bitmapoo = getBitmapFromURL(strings[0]);
+            return null;
+
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            // notify profile pic is loaded
+            Bitmap bitmap1 = createEmergencyBitmap();
+            MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude, longitude)).snippet(Need + "," + Phone + "," + Commission);
+            options.icon(BitmapDescriptorFactory.fromBitmap(bitmap1));
+            options.anchor(0.5f, 0.907f);
+            Marker marker = mMap.addMarker(options);
+            hashMapMarker.put(Uidk, marker);
+            String id = marker.getId();
+            whor.put(id, emergencyDetailsk);
+            EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
+            hashMapMarker1.put(marker, emergencyDetails);
+        }
     }
 
     private void uploadFile() {
@@ -262,6 +307,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
+     static class Download extends AsyncTask<String,Void,Bitmap>
+     {
+
+        @Override
+        protected Bitmap doInBackground(String... strings) {
+            getBitmapFromURL(strings[0]);
+           return null;
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            bitmapoo = bitmap;
+        }
     }
 
 
@@ -637,6 +697,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if(user!=null){
                 namE = user.getDisplayName();
+                uploadFile();
             }
         }
         else {
@@ -800,7 +861,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
             else {
-                Toast.makeText(MapsActivity.this,"service not started",Toast.LENGTH_SHORT).show();
+//                Toast.makeText(MapsActivity.this,"service not started",Toast.LENGTH_SHORT).show();
             }
 
         }
@@ -819,8 +880,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).snippet(name);
 
                     Bitmap bitmap = createEmergencyBitmap();
+
                     if(bitmap!=null){
-                        Toast.makeText(MapsActivity.this,"Rescuer call 3",Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(MapsActivity.this,"Rescuer call 3",Toast.LENGTH_SHORT).show();
                         options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
                         options.anchor(0.5f, 0.907f);
                     }
@@ -1002,11 +1064,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                                    }
 //                                        Toast.makeText(MapsActivity.this,"Others",Toast.LENGTH_SHORT).show();
                                                } else {
-                                                   Toast.makeText(MapsActivity.this, "rero - Solved", Toast.LENGTH_SHORT).show();
+//                                                   Toast.makeText(MapsActivity.this, "rero - Solved", Toast.LENGTH_SHORT).show();
                                                    v = getLayoutInflater().inflate(R.layout.name, null);
                                                    JavaNameShow = v.findViewById(R.id.Xmlnamepro);
                                                    JavaNameShow.setText("You: " + namE);
-                                                   Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
+//                                                   Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
                                                    return v;
                                                }
                                                return v;
@@ -1014,7 +1076,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                                String who = hashMapme.get(marker);
                                                if (who == null) {
                                                    View v = getLayoutInflater().inflate(R.layout.accept_request, null);
-                                                   Toast.makeText(MapsActivity.this, "Orri", Toast.LENGTH_SHORT).show();
+//                                                   Toast.makeText(MapsActivity.this, "Orri", Toast.LENGTH_SHORT).show();
                                                    emergencyDetails = (EmergencyDetails) hashMapMarker1.get(marker);
                                                    if (JavaNameShow != null && JavaNeedShow != null && JavaCommissionShow != null && JavaPhoneShow != null & emergencyDetails != null) {
                                                        JavaNameShow.setText(emergencyDetails.nameshow);
@@ -1042,22 +1104,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                                                            // Be carefull here if you get any errors remove this else thats it
 
-                                                           Toast.makeText(MapsActivity.this, "keko - Solved", Toast.LENGTH_SHORT).show();
+//                                                           Toast.makeText(MapsActivity.this, "keko - Solved", Toast.LENGTH_SHORT).show();
                                                            v = getLayoutInflater().inflate(R.layout.name, null);
                                                            JavaNameShow = v.findViewById(R.id.Xmlnamepro);
                                                            JavaNameShow.setText("You: " + namE);
-                                                           Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
+//                                                           Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
                                                            return v;
                                                        }
 
                                                    }
                                                    return v;
                                                } else {
-                                                   Toast.makeText(MapsActivity.this, "keero - Solved", Toast.LENGTH_SHORT).show();
+//                                                   Toast.makeText(MapsActivity.this, "keero - Solved", Toast.LENGTH_SHORT).show();
                                                    View v = getLayoutInflater().inflate(R.layout.name, null);
                                                    JavaNameShow = v.findViewById(R.id.Xmlnamepro);
                                                    JavaNameShow.setText("You: " + namE);
-                                                   Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
+//                                                   Toast.makeText(MapsActivity.this, "You", Toast.LENGTH_SHORT).show();
                                                }
 
                                                return null;
@@ -1076,30 +1138,35 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                        MarkerOptions options = new MarkerOptions().title(name).position(new LatLng(latitude,longitude)).icon(BitmapDescriptorFactory.fromBitmap(smallMarker)).snippet(Need+","+Phone+","+Commission);
                                    options = new MarkerOptions().title(name).position(new LatLng(latitude, longitude)).snippet(Need + "," + Phone + "," + Commission);
 
-                                   Bitmap bitmap = createEmergencyBitmap();
-                                   if (bitmap != null) {
-                                       Toast.makeText(MapsActivity.this,"child added call 2",Toast.LENGTH_SHORT).show();
+                                   LoadProfilePic profilePic = new LoadProfilePic(Need,Phone,Commission,latitude,longitude,name,emergencyDetailsk,Uid);
+                                   profilePic.execute(pic);
 
-                                       options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
-                                       options.anchor(0.5f, 0.907f);
-                                   }
+//                                   Bitmap bitmap = createEmergencyBitmap();
+//                                   Download download = new Download();
+//                                   download.execute(pic);
+//                                   if (bitmapoo != null) {
+////                                       Toast.makeText(MapsActivity.this,"child added call 2",Toast.LENGTH_SHORT).show();
+//
+//                                       options.icon(BitmapDescriptorFactory.fromBitmap(bitmapoo));
+//                                       options.anchor(0.5f, 0.907f);
+//                                   }
 
-                                   Marker marker = mMap.addMarker(options);
-                                   hashMapMarker.put(Uid, marker);
-                                   String id = marker.getId();
-                                   whor.put(id, emergencyDetailsk);
-                                   EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
-                                   hashMapMarker1.put(marker, emergencyDetails);
-                                   // Do something for lollipop and above versions
+//                                   Marker marker = mMap.addMarker(options);
+//                                   hashMapMarker.put(Uid, marker);
+//                                   String id = marker.getId();
+//                                   whor.put(id, emergencyDetailsk);
+//                                   EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
+//                                   hashMapMarker1.put(marker, emergencyDetails);
+//                                   // Do something for lollipop and above versions
                                } else {
-                                   options = new MarkerOptions().title(name).position(new LatLng(latitude, longitude)).snippet(Need + "," + Phone + "," + Commission);
-                                   Marker marker = mMap.addMarker(options);
-                                   hashMapMarker.put(Uid, marker);
-                                   String id = marker.getId();
-                                   whor.put(id, emergencyDetailsk);
-                                   EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
-                                   hashMapMarker1.put(marker, emergencyDetails);
-                                   Toast.makeText(MapsActivity.this, "Old" + android.os.Build.VERSION.SDK_INT, Toast.LENGTH_SHORT).show();
+//                                   options = new MarkerOptions().title(name).position(new LatLng(latitude, longitude)).snippet(Need + "," + Phone + "," + Commission);
+//                                   Marker marker = mMap.addMarker(options);
+//                                   hashMapMarker.put(Uid, marker);
+//                                   String id = marker.getId();
+//                                   whor.put(id, emergencyDetailsk);
+//                                   EmergencyDetails emergencyDetails = new EmergencyDetails(Need, Commission, Phone, name);
+//                                   hashMapMarker1.put(marker, emergencyDetails);
+////                                   Toast.makeText(MapsActivity.this, "Old" + android.os.Build.VERSION.SDK_INT, Toast.LENGTH_SHORT).show();
                                    // do something for phones running an SDK before lollipop
                                }
 
@@ -1134,6 +1201,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                dist = DistenceBwTwoLocations.Distence(MyLat, MyLong, latitude, longitude);
 //                        if(dist<2000){
 
+
+                               LoadProfilePic profilePic = new LoadProfilePic(Need,Phone,Commission,latitude,longitude,name,emergencyDetailsk,Uid);
+                               profilePic.execute(pic);
 //                            if(!namE.equals(dataSnapshot.getKey())){
 //                                NotificationCompat.Builder builder = new NotificationCompat.Builder(MapsActivity.this,"M_CH_ID");
 //                                builder.setSmallIcon(R.drawable.ic_launcher);
@@ -1177,12 +1247,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                                Bitmap bitmap = createEmergencyBitmap();
                                if (bitmap != null) {
-                                   Toast.makeText(MapsActivity.this,"child changed call 1",Toast.LENGTH_SHORT).show();
+//                                   Toast.makeText(MapsActivity.this,"child changed call 1",Toast.LENGTH_SHORT).show();
                                    options.icon(BitmapDescriptorFactory.fromBitmap(bitmap));
                                    options.anchor(0.5f, 0.907f);
                                }
 
-                               marker = mMap.addMarker(options);
+//                               marker = mMap.addMarker(options);
                                hashMapMarker.put(Uid, marker);
                                String id = marker.getId();
                                whor.put(id, emergencyDetailsk);
@@ -1217,7 +1287,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
            });
        }
        else {
-            Toast.makeText(MapsActivity.this,"problems",Toast.LENGTH_SHORT).show();
+//            Toast.makeText(MapsActivity.this,"problems",Toast.LENGTH_SHORT).show();
        }
 
 
@@ -1280,7 +1350,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 this, R.raw.mapstyle));
 
                 if (!success) {
-                    Toast.makeText(MapsActivity.this,"find me",Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(MapsActivity.this,"find me",Toast.LENGTH_SHORT).show();
 //                Log.e(TAG, "Style parsing failed.");
                 }
             } catch (Resources.NotFoundException e) {
@@ -1297,7 +1367,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 this, R.raw.darkmap));
 
                 if (!success) {
-                    Toast.makeText(MapsActivity.this,"find me too",Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(MapsActivity.this,"find me too",Toast.LENGTH_SHORT).show();
 //                Log.e(TAG, "Style parsing failed.");
                 }
             } catch (Resources.NotFoundException e) {
@@ -1360,6 +1430,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+
+
     private Bitmap createEmergencyBitmap() {
         Toast.makeText(MapsActivity.this,"in createEmergencyBitmap method ",Toast.LENGTH_SHORT).show();
         Bitmap result = null;
@@ -1377,7 +1449,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.owl);
             //Bitmap bitmap = BitmapFactory.decodeFile(path.toString()); /*generate bitmap here if your image comes from any url*/
-            bitmap = getBitmapFromURL(pic);
+            bitmap = bitmapoo;
             if (bitmap != null) {
                 BitmapShader shader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
                 Matrix matrix = new Matrix();
@@ -1682,13 +1754,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(MapsActivity.this);
                     if(account!=null){
                         namE = account.getDisplayName();
-                        Toast.makeText(MapsActivity.this,"Welcome "+namE,Toast.LENGTH_SHORT).show();
+//                        Toast.makeText(MapsActivity.this,"Welcome "+namE,Toast.LENGTH_SHORT).show();
                     }
                     else {
                         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
                         if(user!=null){
                             namE = user.getDisplayName();
-                            Toast.makeText(MapsActivity.this,"Welcome "+namE,Toast.LENGTH_SHORT).show();
+//                            Toast.makeText(MapsActivity.this,"Welcome "+namE,Toast.LENGTH_SHORT).show();
                         }
                     }
                 }
@@ -1784,7 +1856,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                 }
                 else {
-                    Toast.makeText(MapsActivity.this,"name not recieved",Toast.LENGTH_SHORT).show();
+//                    Toast.makeText(MapsActivity.this,"name not recieved",Toast.LENGTH_SHORT).show();
                 }
 
                 if(!gps.canGetLocation()){
@@ -1872,6 +1944,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onBackPressed() {
+        MyMarker.remove();
         closeContextMenu();
 //        Toast.makeText(MapsActivity.this,"No going back",Toast.LENGTH_SHORT).show();
     }

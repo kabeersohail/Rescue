@@ -21,7 +21,7 @@ public class SensorRestarterBroadcastReceiver extends BroadcastReceiver {
 //        GPSTracker gpsTracker = new GPSTracker(context);
 //        k = gpsTracker.canGetLocation();
 //        if(k){
-            Toast.makeText(context,"Service Stopped", Toast.LENGTH_SHORT).show();
+//            Toast.makeText(context,"Service Stopped", Toast.LENGTH_SHORT).show();
             Log.i(SensorRestarterBroadcastReceiver.class.getSimpleName(), "Service Stops! Oooooooooooooppppssssss!!!!");
             FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
             if(firebaseUser!=null){
@@ -29,7 +29,7 @@ public class SensorRestarterBroadcastReceiver extends BroadcastReceiver {
             }
             else {
                 context.startService(new Intent(context, HelloService.class));
-                Toast.makeText(context,"firebase or location",Toast.LENGTH_SHORT).show();
+//                Toast.makeText(context,"firebase or location",Toast.LENGTH_SHORT).show();
             }
 //        }
     }

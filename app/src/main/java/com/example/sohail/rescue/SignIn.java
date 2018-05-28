@@ -35,7 +35,7 @@ public class SignIn extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        Toast.makeText(SignIn.this,"In onstart method",Toast.LENGTH_SHORT).show();
+//        Toast.makeText(SignIn.this,"In onstart method",Toast.LENGTH_SHORT).show();
         //old
 //        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this);
 //        updateUI(account);
@@ -46,7 +46,7 @@ public class SignIn extends AppCompatActivity {
 
     private void updateUI(FirebaseUser currentUser) {
         if(currentUser!=null){
-            Toast.makeText(SignIn.this,"Updating ui",Toast.LENGTH_SHORT).show();
+//            Toast.makeText(SignIn.this,"Updating ui",Toast.LENGTH_SHORT).show();
             finish();
             startActivity(new Intent(SignIn.this,MapsActivity.class));
 
@@ -63,11 +63,11 @@ public class SignIn extends AppCompatActivity {
             // a listener.
             Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
             try{
-                Toast.makeText(SignIn.this,"google sign in Success",Toast.LENGTH_SHORT).show();
+//                Toast.makeText(SignIn.this,"google sign in Success",Toast.LENGTH_SHORT).show();
                 GoogleSignInAccount account = task.getResult(ApiException.class);
                 firebaseAuthWithGoogle(account);
             }catch (ApiException e){
-                Toast.makeText(SignIn.this,"google sign in faild"+e,Toast.LENGTH_SHORT).show();
+//                Toast.makeText(SignIn.this,"google sign in faild"+e,Toast.LENGTH_SHORT).show();
                 Log.w(TAG,"Google Sign in failed",e);
             }
 //            handleSignInResult(task);
@@ -81,7 +81,7 @@ public class SignIn extends AppCompatActivity {
         setContentView(R.layout.activity_sign_in);
 
         mAuth = FirebaseAuth.getInstance();
-        Toast.makeText(SignIn.this,"in on create",Toast.LENGTH_SHORT).show();
+//        Toast.makeText(SignIn.this,"in on create",Toast.LENGTH_SHORT).show();
         signInButton = findViewById(R.id.SignInButton);
         signInButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -103,27 +103,27 @@ public class SignIn extends AppCompatActivity {
     }
 
     private void signIn() {
-        Toast.makeText(SignIn.this,"Insign in method",Toast.LENGTH_SHORT).show();
+//        Toast.makeText(SignIn.this,"Insign in method",Toast.LENGTH_SHORT).show();
         Intent signInIntent = mGoogleSignInClient.getSignInIntent();
         startActivityForResult(signInIntent, RC_SIGN_IN);
     }
 
     private void firebaseAuthWithGoogle(GoogleSignInAccount acct) {
         Log.d(TAG, "firebaseAuthWithGoogle:" + acct.getId());
-        Toast.makeText(SignIn.this,"firebaseAuthWithGoogle Success",Toast.LENGTH_SHORT).show();
+//        Toast.makeText(SignIn.this,"firebaseAuthWithGoogle Success",Toast.LENGTH_SHORT).show();
         AuthCredential credential = GoogleAuthProvider.getCredential(acct.getIdToken(), null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()) {
-                            Toast.makeText(SignIn.this,"firebaseAuthWithGoogle Success",Toast.LENGTH_SHORT).show();
+//                            Toast.makeText(SignIn.this,"firebaseAuthWithGoogle Success",Toast.LENGTH_SHORT).show();
                             // Sign in success, update UI with the signed-in user's information
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
                             updateUI(user);
                         } else {
-                            Toast.makeText(SignIn.this,"Faild",Toast.LENGTH_SHORT).show();
+//                            Toast.makeText(SignIn.this,"Faild",Toast.LENGTH_SHORT).show();
                             // If sign in fails, display a message to the user.
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
                             Snackbar.make(findViewById(R.id.main_layout), "firebaseAuthWithGoogle Failed.", Snackbar.LENGTH_SHORT).show();
