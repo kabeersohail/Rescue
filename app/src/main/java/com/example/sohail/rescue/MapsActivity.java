@@ -291,7 +291,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 else if(items[which].equals("Removie profile pic")){
                     circleImageView.setImageResource(R.drawable.profilepic);
                     PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
-                    Toast.makeText(MapsActivity.this,"Removed",Toast.LENGTH_SHORT).show();
+                    FirebaseStorage firebaseStorage;
+                    firebaseStorage = FirebaseStorage.getInstance();
+                    StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
+                    propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                        @Override
+                        public void onSuccess(Void aVoid) {
+                            Toast.makeText(MapsActivity.this,"Removed",Toast.LENGTH_SHORT).show();
+                        }
+                    });
                 }
                 else if(items[which].equals("Gallery")){
                     Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
