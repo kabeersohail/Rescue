@@ -157,6 +157,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public static GoogleApiClient apiClient=null;
     private static final int Req_Code = 9001;
     Integer Request_Camera = 1;
+    Integer REMOVE_PROFILE_PIC = 20;
     Integer Select_File = 0;
     LinearLayout GoogleBtn;
     CircleImageView circleImageView;
@@ -277,7 +278,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void selectImage(){
-        final CharSequence[] items = {"Camera","Gallery","Cancel"};
+        final CharSequence[] items = {"Camera","Gallery","Removie profile pic","Cancel"};
         AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
         builder.setTitle("Add Profile Pic");
         builder.setItems(items, new DialogInterface.OnClickListener() {
@@ -286,6 +287,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if(items[which].equals("Camera")){
                     Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                     startActivityForResult(intent,Request_Camera);
+                }
+                else if(items[which].equals("Removie profile pic")){
+                    circleImageView.setImageResource(R.drawable.profilepic);
+                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
+                    Toast.makeText(MapsActivity.this,"Removed",Toast.LENGTH_SHORT).show();
                 }
                 else if(items[which].equals("Gallery")){
                     Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
@@ -541,6 +547,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 uploadFile();
                 ProfilePicpath = saveToInternalStorage(bmp);
                 PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Path",ProfilePicpath).apply();
+            }
+            else if(requestCode == REMOVE_PROFILE_PIC){
+                Toast.makeText(MapsActivity.this,"Removed",Toast.LENGTH_SHORT).show();
             }
             else if(requestCode == Select_File){
                 Uri selectedUri = data.getData();
