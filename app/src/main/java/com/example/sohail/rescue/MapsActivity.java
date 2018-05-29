@@ -242,8 +242,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void uploadFile() {
         if (mImageUri != null) {
-            StorageReference fileReference = mStorageRef.child(System.currentTimeMillis()
-                    + "." + getFileExtension(mImageUri));
+            final String s = System.currentTimeMillis()
+                    + "." + getFileExtension(mImageUri);
+            StorageReference fileReference = mStorageRef.child(s);
 
             mUploadTask = fileReference.putFile(mImageUri)
                     .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
@@ -257,10 +258,25 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //                                }
 //                            }, 500);
 
-                            Toast.makeText(MapsActivity.this, "Upload successful", Toast.LENGTH_LONG).show();
-                            download = taskSnapshot.getDownloadUrl().toString();
-                            PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Download",download).apply();
-                            UploadProfilePic upload = new UploadProfilePic(namE, download);
+//                            download = taskSnapshot.getDownloadUrl().toString();
+                            mStorageRef.child(s).getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                @Override
+                                public void onSuccess(Uri uri) {
+//                                    Uri uri1 = uri;
+                                    download = uri.toString();
+                                    Toast.makeText(MapsActivity.this, "Upload successful", Toast.LENGTH_LONG).show();
+                                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Download",download).apply();
+
+                                    // Got the download URL for 'users/me/profile.png'
+                                }
+                            }).addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception exception) {
+                                    // Handle any errors
+                                }
+                            });
+//                            Uri uri = taskSnapshot.getDownloadUrl();
+//                            UploadProfilePic upload = new UploadProfilePic(namE, download);
 //                            String uploadId = mDatabaseRef.push().getKey();
 //                            mDatabaseRef.child(firebaseUser.getUid()).setValue(upload);
 //                            mDatabaseRef.child(uploadId).setValue(upload);
@@ -1518,6 +1534,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 bitmapRect.set(dpo(5), dpo(5), dpo(52 + 5), dpo(52 + 5));
                 canvas.drawRoundRect(bitmapRect, dpo(26), dpo(26), roundPaint);
             }
+            else {
+                bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.profilepic);
+                BitmapShader shader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+                Matrix matrix = new Matrix();
+                float scale = dpo(55) / (float) bitmap.getWidth();
+                matrix.postTranslate(dpo(10), dpo(10));
+                matrix.postScale(scale, scale);
+                roundPaint.setShader(shader);
+                shader.setLocalMatrix(matrix);
+                bitmapRect.set(dpo(5), dpo(5), dpo(52 + 5), dpo(52 + 5));
+                canvas.drawRoundRect(bitmapRect, dpo(26), dpo(26), roundPaint);
+            }
             canvas.restore();
             try {
                 canvas.setBitmap(null);
@@ -1575,6 +1603,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 bitmapRect.set(dpo(5), dpo(5), dpo(52 + 5), dpo(52 + 5));
                 canvas.drawRoundRect(bitmapRect, dpo(26), dpo(26), roundPaint);
             }
+
             canvas.restore();
             try {
                 canvas.setBitmap(null);
