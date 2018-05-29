@@ -107,6 +107,8 @@ import com.google.firebase.storage.UploadTask;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
+import com.theartofdev.edmodo.cropper.CropImage;
+import com.theartofdev.edmodo.cropper.CropImageView;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -294,35 +296,36 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void selectImage(){
-        final CharSequence[] items = {"Camera","Gallery","Remove profile pic","Cancel"};
+//        final CharSequence[] items = {"Camera","Gallery","Remove profile pic","Cancel","Crop"};
+        final CharSequence[] items = {"Choose profile pic","Remove profile pic","Cancel"};
         AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
         builder.setTitle("Add Profile Pic");
         builder.setItems(items, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                if(items[which].equals("Camera")){
-                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
-                    FirebaseStorage firebaseStorage;
-                    firebaseStorage = FirebaseStorage.getInstance();
-                    if(download!=null){
-                        StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
-                        propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void aVoid) {
-                                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                                startActivityForResult(intent,Request_Camera);
-                                Toast.makeText(MapsActivity.this,"Profile pic changed",Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    }
-                    else {
-                        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                        startActivityForResult(intent,Request_Camera);
-                    }
-
-
-                }
-                else if(items[which].equals("Remove profile pic")){
+//                if(items[which].equals("Camera")){
+//                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
+//                    FirebaseStorage firebaseStorage;
+//                    firebaseStorage = FirebaseStorage.getInstance();
+//                    if(download!=null){
+//                        StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
+//                        propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+//                            @Override
+//                            public void onSuccess(Void aVoid) {
+//                                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+//                                startActivityForResult(intent,Request_Camera);
+//                                Toast.makeText(MapsActivity.this,"Profile pic changed",Toast.LENGTH_SHORT).show();
+//                            }
+//                        });
+//                    }
+//                    else {
+//                        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+//                        startActivityForResult(intent,Request_Camera);
+//                    }
+//
+//
+//                }
+                 if(items[which].equals("Remove profile pic")){
                     circleImageView.setImageResource(R.drawable.profilepic);
                     PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
                     FirebaseStorage firebaseStorage;
@@ -340,30 +343,35 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         Toast.makeText(MapsActivity.this,"profile pic not present",Toast.LENGTH_SHORT).show();
                     }
                 }
-                else if(items[which].equals("Gallery")){
-                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
-                    FirebaseStorage firebaseStorage;
-                    firebaseStorage = FirebaseStorage.getInstance();
-                    if(download != null){
-                        StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
-                        propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void aVoid) {
-                                Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                                intent.setType("image/*");
-                                startActivityForResult(Intent.createChooser(intent,"Select File"),Select_File);
-                                Toast.makeText(MapsActivity.this,"Profile pic Changed",Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    }
-                    else {
-                        Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                        intent.setType("image/*");
-                        startActivityForResult(Intent.createChooser(intent,"Select File"),Select_File);
-                    }
-
-
+                else if(items[which].equals("Choose profile pic")){
+                    CropImage.activity()
+                            .setGuidelines(CropImageView.Guidelines.ON)
+                            .start(MapsActivity.this);
                 }
+//                else if(items[which].equals("Gallery")){
+//                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
+//                    FirebaseStorage firebaseStorage;
+//                    firebaseStorage = FirebaseStorage.getInstance();
+//                    if(download != null){
+//                        StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
+//                        propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+//                            @Override
+//                            public void onSuccess(Void aVoid) {
+//                                Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+//                                intent.setType("image/*");
+//                                startActivityForResult(Intent.createChooser(intent,"Select File"),Select_File);
+//                                Toast.makeText(MapsActivity.this,"Profile pic Changed",Toast.LENGTH_SHORT).show();
+//                            }
+//                        });
+//                    }
+//                    else {
+//                        Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+//                        intent.setType("image/*");
+//                        startActivityForResult(Intent.createChooser(intent,"Select File"),Select_File);
+//                    }
+//
+//
+//                }
                 else if(items[which].equals("Cancel")){
                     dialog.dismiss();
                 }
@@ -602,6 +610,25 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
 
         if(resultCode == Activity.RESULT_OK){
+//new
+            if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
+                CropImage.ActivityResult result = CropImage.getActivityResult(data);
+                if (resultCode == RESULT_OK) {
+                     mImageUri = result.getUri();
+                    try {
+                        Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), mImageUri);
+                        circleImageView.setImageBitmap(bitmap);
+                        uploadFile();
+                        ProfilePicpath = saveToInternalStorage(bitmap);
+                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().putString("Path",ProfilePicpath).apply();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                } else if (resultCode == CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE) {
+                    Exception error = result.getError();
+                }
+            }
+
             if(requestCode == Request_Camera){
                 if(data!=null){
                     mImageUri = data.getData();

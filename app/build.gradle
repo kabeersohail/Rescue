@@ -54,5 +54,9 @@ dependencies {
     annotationProcessor 'com.github.bumptech.glide:compiler:4.7.1'
     implementation 'com.squareup.picasso:picasso:2.71828'
     implementation 'com.felipecsl:gifimageview:2.2.0'
+
+    //crop
+    implementation 'com.theartofdev.edmodo:android-image-cropper:2.7.+'
+
 }
 apply plugin: 'com.google.gms.google-services'
