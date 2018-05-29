@@ -278,7 +278,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void selectImage(){
-        final CharSequence[] items = {"Camera","Gallery","Removie profile pic","Cancel"};
+        final CharSequence[] items = {"Camera","Gallery","Remove profile pic","Cancel"};
         AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
         builder.setTitle("Add Profile Pic");
         builder.setItems(items, new DialogInterface.OnClickListener() {
