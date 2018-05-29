@@ -297,7 +297,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void selectImage(){
 //        final CharSequence[] items = {"Camera","Gallery","Remove profile pic","Cancel","Crop"};
-        final CharSequence[] items = {"Choose profile pic","Remove profile pic","Cancel"};
+        final CharSequence[] items = {"Add profilepic","Remove profile pic","Cancel"};
         AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
         builder.setTitle("Add Profile Pic");
         builder.setItems(items, new DialogInterface.OnClickListener() {
@@ -343,10 +343,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         Toast.makeText(MapsActivity.this,"profile pic not present",Toast.LENGTH_SHORT).show();
                     }
                 }
-                else if(items[which].equals("Choose profile pic")){
-                    CropImage.activity()
-                            .setGuidelines(CropImageView.Guidelines.ON)
-                            .start(MapsActivity.this);
+                else if(items[which].equals("Add profilepic")){
+                     circleImageView.setImageResource(R.drawable.profilepic);
+                     PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
+                     FirebaseStorage firebaseStorage;
+                     firebaseStorage = FirebaseStorage.getInstance();
+                     if(download != null){
+                         StorageReference propic = firebaseStorage.getReferenceFromUrl(download);
+                         propic.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
+                             @Override
+                             public void onSuccess(Void aVoid) {
+                                 Toast.makeText(MapsActivity.this,"Updating",Toast.LENGTH_SHORT).show();
+
+                             }
+                         });
+                     }
+                     CropImage.activity()
+                             .setGuidelines(CropImageView.Guidelines.ON)
+                             .start(MapsActivity.this);
                 }
 //                else if(items[which].equals("Gallery")){
 //                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit().remove("Path").apply();
